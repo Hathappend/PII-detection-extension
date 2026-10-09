@@ -24,7 +24,48 @@ class ContentScript {
             return;
         }
         console.log(`[PromptGuard] Inisialisasi untuk ${this.activePlatform.name} berhasil.`);
+        this.setupMessageBridge();
         this.startObserver();
+    }
+
+    // Jembatan popup <-> content script untuk unduhan model NER.
+    // Protokol: PG_NER_STATUS / PG_NER_WARMUP (popup -> content),
+    //          PG_NER_PROGRESS / PG_NER_DONE (content -> popup).
+    setupMessageBridge() {
+        chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
+            if (msg.type === 'PG_NER_STATUS') {
+                NerClient.status().then(sendResponse);
+                return true; // respons async
+            }
+            if (msg.type === 'PG_NER_WARMUP') {
+                this.startWarmup();
+                sendResponse({ started: true });
+                return false;
+            }
+            return false;
+        });
+    }
+
+    async startWarmup() {
+        const onProgress = (p) => {
+            if (p.status === 'initiate' || p.status === 'progress') {
+                chrome.runtime.sendMessage({
+                    type: 'PG_NER_PROGRESS',
+                    file: p.file || 'model',
+                    progress: p.progress ?? 0,
+                    loaded: p.loaded ?? 0,
+                    total: p.total ?? 0,
+                }).catch(() => {}); // popup mungkin sudah ditutup -> abaikan
+            }
+        };
+        let ok = false;
+        let error = null;
+        try {
+            ok = await NerClient.warmup(onProgress);
+        } catch (err) {
+            error = String((err && err.message) || err);
+        }
+        chrome.runtime.sendMessage({ type: 'PG_NER_DONE', ok, error }).catch(() => {});
     }
 
     startObserver() {

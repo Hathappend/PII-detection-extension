@@ -3,34 +3,30 @@
 <head>
     <meta charset="UTF-8">
     <title>Prompting Protection</title>
-    <style>
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            width: 250px;
-            padding: 15px;
-            text-align: center;
-        }
-        .header {
-            font-weight: bold;
-            font-size: 16px;
-            color: #1e293b;
-            margin-bottom: 10px;
-        }
-        .status {
-            display: inline-block;
-            padding: 5px 10px;
-            background-color: #dcfce7;
-            color: #166534;
-            border-radius: 12px;
-            font-size: 12px;
-            font-weight: bold;
-        }
-        p { font-size: 12px; color: #64748b; }
-    </style>
+    <link rel="stylesheet" href="popup.css">
 </head>
 <body>
     <div class="header">🛡️ Prompt Guard</div>
     <div class="status">● Aktif Melindungi</div>
-    <p>Ekstensi berjalan di latar belakang untuk mencegah kebocoran PII.</p>
+    <p class="desc">Ekstensi berjalan di latar belakang untuk mencegah kebocoran PII.</p>
+
+    <hr>
+
+    <!-- Status & unduhan model NER -->
+    <div class="ner-section">
+        <div class="ner-title">Model NER <span class="ner-info" title="AI pendeteksi nama, lokasi & tanggal. Diunduh sekali (±180MB), lalu tersimpan di browser.">ⓘ</span></div>
+        <div id="ner-status" class="ner-status">Memeriksa…</div>
+
+        <div id="ner-progress-wrap" class="ner-progress-wrap" hidden>
+            <div class="ner-progress-bar"><div id="ner-progress-fill" class="ner-progress-fill"></div></div>
+            <div id="ner-progress-text" class="ner-progress-text"></div>
+        </div>
+
+        <button id="ner-download-btn" class="ner-btn" hidden>⬇ Download Model NER</button>
+        <button id="ner-recheck-btn" class="ner-btn ner-btn-secondary" hidden>Periksa Ulang</button>
+        <div id="ner-note" class="ner-note" hidden>Jangan tutup tab ini selama mengunduh.</div>
+    </div>
+
+    <script src="popup.js"></script>
 </body>
 </html>

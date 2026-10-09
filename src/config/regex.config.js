@@ -93,6 +93,11 @@ const RegexConfig = {
             regex: /\b(?:0[1-9]|[12][0-9]|3[01])[\/\-](?:0[1-9]|1[012])[\/\-](?:19|20)\d{2}\b|\b(?:19|20)\d{2}[\/\-](?:0[1-9]|1[012])[\/\-](?:0[1-9]|[12][0-9]|3[01])\b/g
         },
         {
+            id: 'TGL_LAHIR_ID',
+            name: 'Tanggal Lahir (nama bulan Indonesia)',
+            regex: /\b([12]?\d|3[01])\s+(januari|februari|maret|april|mei|juni|juli|agustus|september|oktober|november|desember)\s+((?:19|20)\d{2})\b/gi
+        },
+        {
             id: 'GENDER',
             name: 'Jenis Kelamin',
             regex: /(?:jenis\s+kelamin(?:\s+saya)?\s+(?:adalah)?\s*)(pria|wanita|laki-laki|perempuan)/gi
