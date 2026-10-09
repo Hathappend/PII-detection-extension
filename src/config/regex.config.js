@@ -54,7 +54,9 @@ const RegexConfig = {
         {
             id: 'SIM',
             name: 'Nomor SIM',
-            regex: /\b\d{12}\b/g
+            // Dijangkar trigger: \d{12} polos juga match nomor HP 12 digit
+            // (false positive). Contoh match: "SIM 123456789012", "no sim: ..."
+            regex: /(?:\bsim\b\s*(?:no\.?|nomor)?\s*[:\-]?\s*)(\d{12})/gi
         },
         {
             id: 'NISN',
@@ -118,8 +120,11 @@ const RegexConfig = {
         {
             id: 'PROFESI',
             name: 'Pekerjaan/Profesi',
-            // Menangkap profesi yang terdiri dari 1-3 kata setelah kata pancingan
-            regex: /(?:pekerjaan|profesi)(?:\s+saya)?(?:\s+adalah)?\s+(?:sebagai\s+)?([a-zA-Z]+(?:\s[a-zA-Z]+){0,2})/gi
+            // Menangkap profesi 1-3 kata setelah kata pancingan.
+            // Varian "bekerja|kerja" WAJIB diikuti "sebagai" agar tidak
+            // false positive pada "saya kerja di Jakarta" (-> "di").
+            // Masih gap (butuh model): "kerjaan gw kuli" tanpa "sebagai".
+            regex: /(?:(?:pekerjaan|profesi)(?:\s+saya)?(?:\s+adalah)?\s+(?:sebagai\s+)?|(?:bekerja|kerja)\s+sebagai\s+)([a-zA-Z]+(?:\s[a-zA-Z]+){0,2})/gi
         },
 
         // ============================================
@@ -134,6 +139,32 @@ const RegexConfig = {
             id: 'CIRI_FISIK',
             name: 'Ciri Fisik Khusus',
             regex: /(?:tinggi\s+badan|berat\s+badan)(?:\s+saya)?\s*[:\-]?\s*\d+\s*(cm|kg)/gi
+        },
+
+        // ============================================
+        // E. DATA KONTAK & KEUANGAN (Tier-1)
+        // Ditambahkan 2026-10-10: sebelumnya tidak ada pola kontak
+        // sama sekali — nomor HP & email lolos tanpa terdeteksi.
+        // ============================================
+        {
+            id: 'NO_HP',
+            name: 'Nomor HP',
+            // Format: 08xx (10-14 digit), 62xxx, +62xxx, dengan/tanpa
+            // pemisah spasi/strip/titik. \b di ujung mencegah 16 digit
+            // (kode voucher) ikut ke-match.
+            regex: /\b(?:\+62|62|0)8\d{2}[\s\-.]?\d{3,4}[\s\-.]?\d{3,4}\b/g
+        },
+        {
+            id: 'EMAIL',
+            name: 'Alamat Email',
+            regex: /\b[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}\b/g
+        },
+        {
+            id: 'NO_REKENING',
+            name: 'Nomor Rekening',
+            // WAJIB ada trigger ("no rekening"): deret 10-16 digit polos
+            // terlalu berisiko false positive tanpa konteks.
+            regex: /(?:no\.?\s*(?:rekening|rek)|nomor\s+rekening)\s*[:\-]?\s*(\d{10,16})/gi
         }
     ]
 };

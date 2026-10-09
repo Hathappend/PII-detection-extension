@@ -1,26 +1,35 @@
 {
-  "manifest_version": 3,
-  "name": "Prompting Protection",
-  "version": "1.0",
-  "description": "Mendeteksi dan mencegah pengiriman data sensitif (PII) ke platform AI seperti ChatGPT.",
-  "permissions": ["storage"],
+  "action": {
+    "default_popup": "src/popup/popup.html"
+  },
   "content_scripts": [
     {
+      "css": [
+        "src/content/content.css"
+      ],
+      "js": [
+        "src/config/app.config.js",
+        "src/config/regex.config.js",
+        "src/config/model.config.js",
+        "src/core/risk-scorer.js",
+        "src/core/ner-postprocess.js",
+        "src/core/detector.js",
+        "src/ner/ner-client.js",
+        "src/content/domManager.js",
+        "src/content/content.js"
+      ],
       "matches": [
         "*://chatgpt.com/*",
         "*://gemini.google.com/*"
       ],
-      "css": ["src/content/content.css"],
-      "js": [
-        "src/config/app.config.js",
-        "src/config/regex.config.js",
-        "src/content/domManager.js",
-        "src/content/content.js"
-      ],
       "run_at": "document_idle"
     }
   ],
-  "action": {
-    "default_popup": "src/popup/popup.html"
-  }
+  "description": "Mendeteksi dan mencegah pengiriman data sensitif (PII) ke platform AI seperti ChatGPT.",
+  "manifest_version": 3,
+  "name": "Prompting Protection",
+  "permissions": [
+    "storage"
+  ],
+  "version": "1.1"
 }
