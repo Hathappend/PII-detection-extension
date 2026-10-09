@@ -60,7 +60,8 @@
         if (!res.vendorOk) {
             setStatus('Library NER belum terpasang di ekstensi ini.<br>' +
                 'Developer: jalankan <code>node scripts/fetch-vendor.mjs</code> ' +
-                'lalu Load unpacked ulang.', 'warn');
+                'lalu Load unpacked ulang.' +
+                (res.vendorError ? `<br><br><code>Diagnostik: ${res.vendorError}</code>` : ''), 'warn');
             return;
         }
 

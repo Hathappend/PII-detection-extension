@@ -21,15 +21,36 @@ const NerClient = (() => {
 
 let pipelinePromise = null;
 let vendorOk = null; // null = belum dicek
+let vendorError = null; // pesan error terakhir (untuk diagnostik)
 
 // Cek ringan: apakah file vendor/transformers.js bisa di-import?
 // (import di-cache oleh module system, jadi murah untuk dipanggil ulang)
+// Dibagi dua langkah agar penyebab kegagalan jelas: file tidak diserve
+// (butuh Reload di chrome://extensions) vs modul gagal dievaluasi.
 async function probeVendor() {
     if (vendorOk !== null) return vendorOk;
+    const url = chrome.runtime.getURL(ModelConfig.VENDOR_LIB);
     try {
-        await import(chrome.runtime.getURL(ModelConfig.VENDOR_LIB));
-        vendorOk = true;
+        const res = await fetch(url, { method: 'HEAD' });
+        if (!res.ok) {
+            vendorError = `fetch vendor: HTTP ${res.status} (${url}) — klik Reload di chrome://extensions`;
+            console.warn('[PromptGuard]', vendorError);
+            vendorOk = false;
+            return vendorOk;
+        }
     } catch (err) {
+        vendorError = `fetch vendor gagal: ${err && err.message} (${url})`;
+        console.warn('[PromptGuard]', vendorError);
+        vendorOk = false;
+        return vendorOk;
+    }
+    try {
+        await import(url);
+        vendorOk = true;
+        vendorError = null;
+    } catch (err) {
+        vendorError = `import vendor gagal: ${err && err.message}`;
+        console.warn('[PromptGuard]', vendorError);
         vendorOk = false;
     }
     return vendorOk;
@@ -64,8 +85,7 @@ function loadPipeline(progressCallback) {
     pipelinePromise = (async () => {
         try {
             if (!(await probeVendor())) {
-                console.warn('[PromptGuard] vendor/transformers.js tidak ada. ' +
-                    'Jalankan: node scripts/fetch-vendor.mjs');
+                // Detail penyebabnya sudah di-log oleh probeVendor().
                 return null;
             }
             const pipe = await createPipeline(progressCallback || null);
@@ -111,7 +131,7 @@ async function warmup(progressCallback) {
 // Status "model siap" dibaca popup dari chrome.storage (di-set setelah
 // warmup/inferensi pertama berhasil).
 async function status() {
-    return { vendorOk: await probeVendor(), model: ModelConfig.MODEL_ID };
+    return { vendorOk: await probeVendor(), vendorError, model: ModelConfig.MODEL_ID };
 }
 
 // Dipanggil internal setelah pipeline terbukti bekerja.
