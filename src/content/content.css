@@ -4,19 +4,49 @@
     top: 24px;
     left: 50%;
     transform: translateX(-50%) translateY(-20px);
-    background-color: #fef2f2;
-    border: 1px solid #f87171;
     border-radius: 12px;
     padding: 12px 20px;
     display: flex;
     align-items: center;
     gap: 12px;
-    box-shadow: 0 10px 25px rgba(239, 68, 68, 0.2);
     z-index: 2147483647;
     opacity: 0;
     pointer-events: none;
     transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); /* Animasi memantul (bounce) */
 }
+
+/* Level warn: kuning */
+.prompt-guard-toast.pg-warn {
+    background-color: #fffbeb;
+    border: 1px solid #fbbf24;
+    box-shadow: 0 10px 25px rgba(251, 191, 36, 0.25);
+}
+.prompt-guard-toast.pg-warn .pg-toast-title { color: #92400e; }
+.prompt-guard-toast.pg-warn .pg-toast-message { color: #78350f; }
+
+/* Level redact/block: merah */
+.prompt-guard-toast.pg-block {
+    background-color: #fef2f2;
+    border: 1px solid #f87171;
+    box-shadow: 0 10px 25px rgba(239, 68, 68, 0.2);
+}
+.prompt-guard-toast.pg-block .pg-toast-title { color: #b91c1c; }
+.prompt-guard-toast.pg-block .pg-toast-message { color: #7f1d1d; }
+
+/* Tombol override "Tetap kirim" (hanya di level redact) */
+.pg-toast-override {
+    margin-left: 8px;
+    padding: 6px 12px;
+    border: 1px solid #f87171;
+    border-radius: 8px;
+    background: #fff;
+    color: #b91c1c;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+}
+.pg-toast-override:hover { background: #fef2f2; }
 
 /* Class untuk memunculkan toast */
 .prompt-guard-toast.pg-show {

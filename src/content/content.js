@@ -1,36 +1,40 @@
-// Entry Point Content Script
+// Entry Point Content Script — PromptGuard.
+//
+// Alur per pesan:
+//   ketikan -> debounce -> Detector.analyze (regex + NER + risk scorer)
+//   -> DOMManager.applyDecision (toast + tombol kirim + Enter)
 class ContentScript {
     constructor() {
         this.domManager = new DOMManager(AppConfig);
-        this.isMonitoring = false;
-        // Mendeteksi sedang berada di website mana berdasarkan URL
         this.activePlatform = this.detectPlatform();
+        this.isMonitoring = false;
+        this.debounceTimer = null;
+        this.seq = 0;              // penjaga race-condition hasil async
+        this.lastDecision = 'pass';
     }
 
     detectPlatform() {
         const currentHost = window.location.hostname;
-        return AppConfig.PLATFORMS.find(platform => currentHost.includes(platform.host)) || null;
+        return AppConfig.PLATFORMS.find((platform) => currentHost.includes(platform.host)) || null;
     }
 
     init() {
         if (!this.activePlatform) {
-            console.log("[PromptGuard] Web ini tidak didukung.");
+            console.log('[PromptGuard] Web ini tidak didukung.');
             return;
         }
-        
-        console.log(`[PromptGuard] Inisialisasi Ekstensi untuk ${this.activePlatform.name} Berhasil...`);
+        console.log(`[PromptGuard] Inisialisasi untuk ${this.activePlatform.name} berhasil.`);
         this.startObserver();
     }
 
     startObserver() {
         const observer = new MutationObserver(() => {
-            // Mencari input text sesuai konfigurasi platform saat ini
             const inputField = document.querySelector(this.activePlatform.inputSelector);
-            
+
             if (inputField && !this.isMonitoring) {
                 this.isMonitoring = true;
                 this.attachInputListener(inputField);
-                console.log(`[PromptGuard] Input box ${this.activePlatform.name} ditemukan, mulai memantau ketikan...`);
+                console.log(`[PromptGuard] Memantau ketikan di ${this.activePlatform.name}...`);
             } else if (!inputField && this.isMonitoring) {
                 this.isMonitoring = false;
             }
@@ -40,34 +44,35 @@ class ContentScript {
     }
 
     attachInputListener(inputField) {
+        // Analisis di-debounce: regex murah, tapi inferensi NER mahal —
+        // hanya jalan setelah user berhenti mengetik sejenak.
         inputField.addEventListener('input', (e) => {
-            // Mengambil teks dari value atau innerText 
-            const text = e.target.value || e.target.innerText || "";
-            this.analyzeText(text, inputField);
+            const text = e.target.value || e.target.innerText || '';
+            clearTimeout(this.debounceTimer);
+            this.debounceTimer = setTimeout(() => this.analyzeText(text), ModelConfig.DEBOUNCE_MS);
         });
+
+        // Cegah pengiriman via Enter saat keputusan = block.
+        // Capture phase agar berjalan SEBELUM handler milik situs.
+        inputField.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey && this.lastDecision === RiskScorer.DECISIONS.BLOCK) {
+                e.preventDefault();
+                e.stopPropagation();
+            }
+        }, true);
     }
 
-    analyzeText(text, inputField) {
-        // Mencari tombol kirim sesuai konfigurasi platform saat ini
+    async analyzeText(text) {
+        const mySeq = ++this.seq;
         const sendButton = document.querySelector(this.activePlatform.sendButtonSelector);
-        let detectedTypes = new Set();
 
-        RegexConfig.PATTERNS.forEach(pattern => {
-            pattern.regex.lastIndex = 0; 
-            if (pattern.regex.test(text)) {
-                detectedTypes.add(pattern.name);
-            }
-        });
+        const result = await Detector.analyze(text);
 
-        const detectedArray = Array.from(detectedTypes);
+        // Abaikan hasil basi (user sudah mengetik lagi selagi NER jalan).
+        if (mySeq !== this.seq) return;
 
-        if (detectedArray.length > 0) {
-            this.domManager.showWarning(inputField, detectedArray);
-            this.domManager.disableSendButton(sendButton);
-        } else {
-            this.domManager.hideWarning(inputField);
-            this.domManager.enableSendButton(sendButton);
-        }
+        this.lastDecision = result.decision;
+        this.domManager.applyDecision(sendButton, result);
     }
 }
 
