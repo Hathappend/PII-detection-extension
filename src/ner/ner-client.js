@@ -72,7 +72,13 @@ async function createPipeline(progressCallback) {
         console.warn('[PromptGuard] Gagal set wasmPaths, pakai default.', err);
     }
 
-    const options = { quantized: ModelConfig.QUANTIZED };
+    const options = {
+        quantized: ModelConfig.QUANTIZED,
+        // PENTING: aggregation_strategy harus di sini (saat pembuatan
+        // pipeline), bukan saat pemanggilan. Kalau tidak, output mentah
+        // per-token tanpa entity_group (null) dan subword tidak digabung.
+        aggregation_strategy: 'simple',
+    };
     if (progressCallback) options.progress_callback = progressCallback;
 
     const pipe = await pipeline('token-classification', ModelConfig.MODEL_ID, options);
