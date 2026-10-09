@@ -112,6 +112,12 @@ class ContentScript {
         // Abaikan hasil basi (user sudah mengetik lagi selagi NER jalan).
         if (mySeq !== this.seq) return;
 
+        // Log debug: skor + rincian sinyal (membantu diagnosis & transparansi).
+        console.log(`[PromptGuard] "${text.slice(0, 60)}" -> ${result.decision} (${result.score})`);
+        for (const b of result.breakdown) {
+            if (b.points > 0) console.log(`   [${b.kind}] ${b.label} +${b.points} ${b.detail || ''}`);
+        }
+
         this.lastDecision = result.decision;
         this.domManager.applyDecision(sendButton, result);
     }
