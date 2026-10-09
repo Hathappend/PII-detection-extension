@@ -52,6 +52,7 @@ const SIGNAL_SCORES = {
     NAMA_AYAH_KANDUNG: { score: 55, category: 'name' },
     // --- Kelahiran ---
     TGL_LAHIR:         { score: 45, category: 'birth' },
+    TGL_LAHIR_ID:      { score: 45, category: 'birth' },
     TEMPAT_LAHIR:      { score: 30, category: 'birth' },
     // --- Pekerjaan / atribut ---
     PROFESI:           { score: 25, category: 'work' },
