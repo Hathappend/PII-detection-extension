@@ -41,24 +41,40 @@ src/
 │   ├── content.js         # entry: observer, debounce, panggil Detector
 │   ├── domManager.js      # toast, tombol kirim, intersepsi Enter
 │   └── content.css
-└── popup/
-    └── popup.html         # status ekstensi
+├── popup/                 # UI popup ekstensi
+│   ├── popup.html
+│   ├── popup.css
+│   └── popup.js           # status + tombol download model NER
+├── scripts/
+│   └── fetch-vendor.mjs   # dev-time: bundle transformers.js -> vendor/
+└── vendor/                # hasil fetch-vendor (transformers.js + *.wasm)
 ```
 
 File dimuat berurutan sesuai `manifest.json` sebagai script klasik
 (global `AppConfig`, `RegexConfig`, `RiskScorer`, dst. — tanpa build step).
 
-## Memasang NER (opsional, sekali saja)
+## Memasang NER (otomatis, dua tahap)
 
-Tanpa langkah ini ekstensi tetap jalan (mode regex + risk scorer).
+**Tahap 1 — sekali oleh developer** (sebelum distribusi):
 
-1. Download bundle `transformers.js` dan simpan sebagai
-   `vendor/transformers.js` (jangan pakai CDN — CSP melarangnya).
-2. Buka ChatGPT, ketik sesuatu, buka console: `[PromptGuard] Model NER
-   siap` berarti model (default: `Xenova/bert-base-multilingual-cased-ner-hrl`,
-   ~180MB q8) terunduh & ter-cache.
-3. Untuk model lain (mis. hasil fine-tune sendiri), ubah `MODEL_ID` di
-   `src/config/model.config.js`.
+```bash
+node scripts/fetch-vendor.mjs
+```
+
+Mengunduh & mem-bundle `transformers.js` menjadi satu file di `vendor/`
+(jangan pakai CDN — CSP Manifest V3 melarang remote code), beserta file
+WASM onnxruntime. Folder `vendor/` ikut ter-commit agar hasil clone
+langsung bisa di-load.
+
+**Tahap 2 — sekali oleh tiap pengguna** (otomatis via popup):
+
+1. Klik ikon ekstensi → bagian **Model NER** → **⬇ Download Model NER**.
+2. Model (~180MB, default `Xenova/bert-base-multilingual-cased-ner-hrl`)
+   diunduh dengan progress bar, lalu tersimpan permanen di cache browser.
+3. Jangan tutup tab selama mengunduh.
+
+Tanpa tahap 2, ekstensi tetap jalan penuh dengan regex + risk scorer
+(NER adalah penguat, bukan syarat).
 
 ## Instalasi ekstensi
 

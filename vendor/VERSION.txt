@@ -1,0 +1,3 @@
+@huggingface/transformers@3.8.1 (bundle ESM, esbuild)
+onnxruntime-web (wasm, dari node_modules paket di atas)
+Dibuat: 2026-10-09T18:14:20.041Z
