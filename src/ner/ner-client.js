@@ -72,13 +72,7 @@ async function createPipeline(progressCallback) {
         console.warn('[PromptGuard] Gagal set wasmPaths, pakai default.', err);
     }
 
-    const options = {
-        quantized: ModelConfig.QUANTIZED,
-        // PENTING: aggregation_strategy harus di sini (saat pembuatan
-        // pipeline), bukan saat pemanggilan. Kalau tidak, output mentah
-        // per-token tanpa entity_group (null) dan subword tidak digabung.
-        aggregation_strategy: 'simple',
-    };
+    const options = { quantized: ModelConfig.QUANTIZED };
     if (progressCallback) options.progress_callback = progressCallback;
 
     const pipe = await pipeline('token-classification', ModelConfig.MODEL_ID, options);
@@ -111,18 +105,56 @@ async function extractEntities(text) {
     const pipe = await loadPipeline(null);
     if (!pipe) return [];
     try {
-        const out = await pipe(text, { aggregation_strategy: 'simple' });
-        return out.map((e) => ({
-            word: e.word,
-            entity_group: e.entity_group,
-            score: e.score,
-            start: e.start,
-            end: e.end,
-        }));
+        // transformers.js v3 TIDAK mendukung aggregation_strategy —
+        // output selalu token mentah: [{ entity: 'B-LOC'|'I-LOC'|'O', score, word }].
+        // Agregasi BIO -> entitas dilakukan manual di sini.
+        const tokens = await pipe(text);
+        return aggregateBio(tokens);
     } catch (err) {
         console.warn('[PromptGuard] Inferensi NER gagal.', err);
         return [];
     }
+}
+
+// Gabungkan token BIO ("B-LOC","I-LOC",...) menjadi entitas utuh.
+// Menangani subword BERT ("##ati" -> "ati", tanpa spasi) dan tanda baca.
+function aggregateBio(tokens) {
+    const entities = [];
+    let cur = null;
+    const flush = () => { if (cur) { entities.push(cur); cur = null; } };
+    for (const t of tokens || []) {
+        const label = String(t.entity || '');
+        if (!label || label === 'O' || label === 'LABEL_0') { flush(); continue; }
+        const dash = label.indexOf('-');
+        const prefix = dash > 0 ? label.slice(0, dash) : '';
+        const type = dash > 0 ? label.slice(dash + 1) : label;
+        if (prefix === 'B' || !cur || cur.type !== type) {
+            flush();
+            cur = { type, parts: [t.word], scores: [t.score] };
+        } else {
+            cur.parts.push(t.word);
+            cur.scores.push(t.score);
+        }
+    }
+    flush();
+    return entities.map((e) => ({
+        word: joinWordParts(e.parts),
+        entity_group: e.type,
+        score: Math.max(...e.scores),
+        start: null,
+        end: null,
+    }));
+}
+
+function joinWordParts(parts) {
+    let out = '';
+    for (const w of parts) {
+        const word = String(w || '');
+        if (word.startsWith('##')) out += word.slice(2);
+        else if (out === '' || /^[.,;:!?)\]}%'"]/.test(word)) out += word;
+        else out += ' ' + word;
+    }
+    return out;
 }
 
 // warmup: dipanggil dari tombol popup. Mengunduh model (~180MB, sekali
