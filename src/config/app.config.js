@@ -7,9 +7,9 @@ const AppConfig = {
             host: 'chatgpt.com',
             inputSelector: '#prompt-textarea, div.ProseMirror[contenteditable="true"]',
             // Selector berlapis (dipisah koma, querySelector ambil yg pertama cocok):
-            // #composer-submit-button = selector utama 2026,
-            // [data-testid="send-button"] = legacy, aria-label = fallback.
-            sendButtonSelector: '#composer-submit-button, [data-testid="send-button"], button[aria-label="Send prompt"]'
+            // button[aria-label="Send"] = selector utama (UI 2026),
+            // #composer-submit-button, [data-testid] = legacy/fallback.
+            sendButtonSelector: 'button[aria-label="Send"], #composer-submit-button, [data-testid="send-button"], button[aria-label="Send prompt"]'
         },
         {
             name: 'Gemini',
