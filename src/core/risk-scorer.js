@@ -130,6 +130,9 @@ const NIK_CAPPED_SCORE = 40;
 // yang bukan tanggal lahir.
 const BIRTH_TRIGGER_RE = /tanggal\s+lahir|tgl\.?\s*lahir|\blah[iu]r\b|dilahirkan|kelahiran|\bttl\b/i;
 const DATE_CAPPED_SCORE = 15;
+// Cap untuk entitas tanggal dari NER (DAT/TIM) tanpa trigger kelahiran —
+// lebih rendah dari regex karena NER tidak punya konteks trigger.
+const NER_DATE_CAPPED_SCORE = 5;
 
 // ---------------------------------------------------------------------------
 // Util internal
@@ -194,13 +197,17 @@ function scoreMessage(text, options = {}) {
             pts = Math.min(pts, NIK_CAPPED_SCORE);
             note += ' [16-digit tanpa trigger identitas -> dibatasi 40]';
         }
+        let dateCapped = false;
         if ((h.patternId === 'TGL_LAHIR' || h.patternId === 'TGL_LAHIR_ID') && !birthTriggerPresent) {
             pts = Math.min(pts, DATE_CAPPED_SCORE);
             note += ' [tanggal tanpa trigger kelahiran -> dibatasi 15]';
+            dateCapped = true;
         }
         breakdown.push({ kind: 'regex', label: h.patternId, points: pts, detail: note });
         if (pts > maxSignal) maxSignal = pts;
-        categories.add(h.category);
+        // Tanggal yang dibatasi (bukan tanggal lahir) tidak ikut co-occurrence —
+        // sinyal lemah tidak boleh mengamplifikasi skor.
+        if (!dateCapped) categories.add(h.category);
     }
 
     // --- 2. Sinyal NER ---
@@ -230,10 +237,22 @@ function scoreMessage(text, options = {}) {
             continue;
         }
         seenEntities.add(key);
-        nerTotal += grp.score;
-        categories.add(grp.category);
-        breakdown.push({ kind: 'ner', label: e.entity_group, points: grp.score,
-            detail: `'${e.word}' (${conf.toFixed(2)})` });
+        // Aturan tanggal NER: DAT/TIM tanpa trigger kelahiran bukan tanggal
+        // lahir — skor dibatasi dan tidak masuk kategori 'birth' (mencegah
+        // co-occurrence palsu seperti tanggal konsultasi + nama + alamat).
+        let nerPts = grp.score;
+        let nerNote = `'${e.word}' (${conf.toFixed(2)})`;
+        let nerDateCapped = false;
+        if ((e.entity_group === 'DAT' || e.entity_group === 'TIM') && !birthTriggerPresent) {
+            nerPts = Math.min(nerPts, NER_DATE_CAPPED_SCORE);
+            nerNote += ' [tanggal tanpa trigger kelahiran -> dibatasi, bukan birth]';
+            nerDateCapped = true;
+        }
+        nerTotal += nerPts;
+        // Sama seperti regex: tanggal yang dibatasi tidak ikut co-occurrence.
+        if (!nerDateCapped) categories.add(grp.category);
+        breakdown.push({ kind: 'ner', label: e.entity_group, points: nerPts,
+            detail: nerNote });
     }
     if (nerTotal > NER_TOTAL_CAP) {
         breakdown.push({ kind: 'ner', label: 'CAP', points: 0,
