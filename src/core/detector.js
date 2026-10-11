@@ -37,10 +37,31 @@ function scanRegex(text) {
 // Nama ramah untuk label di breakdown (regex id -> nama Indonesia,
 // grup NER -> nama Indonesia).
 const NER_GROUP_NAMES = {
-    PER: 'Nama (NER)', LOC: 'Lokasi (NER)', GPE: 'Lokasi (NER)',
-    DAT: 'Tanggal (NER)', TIM: 'Waktu (NER)',
-    ORG: 'Organisasi (NER)', MISC: 'Lainnya (NER)',
+    PER: 'Nama', LOC: 'Lokasi', GPE: 'Lokasi',
+    DAT: 'Tanggal', TIM: 'Waktu',
+    ORG: 'Nama organisasi', MISC: 'Data lain',
 };
+
+// Nama ramah-awam untuk pola regex (tanpa istilah teknis).
+const FRIENDLY_REGEX_NAMES = {
+    'TGL_LAHIR': 'Tanggal lahir',
+    'TGL_LAHIR_ID': 'Tanggal lahir',
+    'NAMA_KONTEKS': 'Nama',
+    'NAMA_ALIAS': 'Nama panggilan',
+    'NAMA_IBU_KANDUNG': 'Nama ibu',
+    'NAMA_AYAH_KANDUNG': 'Nama ayah',
+    'NIK_KK': 'NIK / No. KK',
+    'NO_HP': 'Nomor HP',
+    'NO_TELP': 'Nomor telepon',
+    'NO_REKENING': 'Nomor rekening',
+    'KARTU_KREDIT': 'Kartu kredit/debit',
+    'NIP': 'NIP',
+    'TEMPAT_LAHIR': 'Tempat lahir',
+};
+
+function friendlyName(label, fallback) {
+    return FRIENDLY_REGEX_NAMES[label] || NER_GROUP_NAMES[label] || fallback;
+}
 
 function summarize(result, regexHits) {
     const names = new Map();
@@ -49,16 +70,17 @@ function summarize(result, regexHits) {
     for (const b of result.breakdown) {
         if (b.points <= 0) continue;
         if (b.kind === 'regex') {
-            let label = names.get(b.label) || b.label;
             // Tanggal yang di-cap (bukan tanggal lahir) tampilkan sebagai
-            // "Tanggal" saja, bukan "Tanggal Lahir" — agar tidak menyesatkan.
+            // "Tanggal" saja — langsung, tanpa lewat mapping.
             if ((b.label === 'TGL_LAHIR' || b.label === 'TGL_LAHIR_ID')
                 && (b.detail || '').includes('tanpa trigger kelahiran')) {
-                label = 'Tanggal';
+                parts.push('Tanggal');
+            } else {
+                let label = names.get(b.label) || b.label;
+                parts.push(friendlyName(b.label, label));
             }
-            parts.push(label);
         }
-        else if (b.kind === 'ner') parts.push(NER_GROUP_NAMES[b.label] || b.label);
+        else if (b.kind === 'ner') parts.push(friendlyName(b.label, b.label));
     }
     // Unik — tampilkan semua jenis yang terdeteksi (user butuh tahu
     // semuanya, bukan hanya 3 pertama).

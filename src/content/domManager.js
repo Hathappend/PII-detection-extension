@@ -46,14 +46,14 @@ class DOMManager {
 
         const detail = summary.length > 0 ? summary.join(', ') : 'data sensitif';
         if (decision === RiskScorer.DECISIONS.WARN) {
-            this.showWarning('warn', 'Perhatian', `Terdeteksi: <b>${detail}</b> (skor ${score}). Periksa sebelum mengirim.`);
+            this.showWarning('warn', 'Perhatian', `Pesan Anda mengandung <b>${detail}</b>. Periksa kembali sebelum mengirim.`);
             this.enableSendButton(buttonElement);
         } else if (decision === RiskScorer.DECISIONS.REDACT) {
-            this.showWarning('block', 'Aksi Ditahan', `Terdeteksi: <b>${detail}</b> (skor ${score}). Hapus data sensitif, atau kirim dengan risiko sendiri.`);
+            this.showWarning('block', 'Tunggu Dulu', `Pesan Anda mengandung <b>${detail}</b>. Hapus data tersebut, atau kirim dengan risiko Anda sendiri.`);
             this.disableSendButton(buttonElement);
             this.armOverride(buttonElement);
         } else { // BLOCK
-            this.showWarning('block', 'Aksi Diblokir', `Terdeteksi: <b>${detail}</b> (skor ${score}). Mohon hapus sebelum mengirim.`);
+            this.showWarning('block', 'Tidak Bisa Dikirim', `Pesan Anda mengandung <b>${detail}</b>. Hapus data tersebut sebelum mengirim.`);
             this.disableSendButton(buttonElement);
         }
     }
