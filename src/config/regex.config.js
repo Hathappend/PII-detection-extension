@@ -9,8 +9,9 @@ const RegexConfig = {
             id: 'NAMA_KONTEKS',
             name: 'Nama Lengkap',
             // Strict Mode: Hanya menangkap jika ada kata eksplisit "nama"
-            // Menangkap: nama saya, nama aku, namaku, nama lengkap, nama adalah
-            regex: /(?:nama\s(?:saya|aku|adalah|lengkap)|namaku)\s+([a-zA-Z]+(?:\s[a-zA-Z]+){0,2})/gi
+            // Menangkap: nama saya, nama aku, namaku, nama lengkap, nama adalah,
+            //           nama pasien (kasus umum di catatan medis/admin)
+            regex: /(?:nama\s(?:saya|aku|adalah|lengkap|pasien)|namaku)\s+([a-zA-Z]+(?:\s[a-zA-Z]+){0,2})/gi
         },
         {
             id: 'NAMA_ALIAS',

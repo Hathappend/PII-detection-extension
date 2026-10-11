@@ -124,6 +124,13 @@ const PUBLIC_FIGURES = [
 const SIXTEEN_DIGITS = /^\d{16}$/;
 const NIK_CAPPED_SCORE = 40;
 
+// Aturan tanggal: TGL_LAHIR tanpa trigger kelahiran ("lahir",
+// "tanggal lahir", "ttl", ...) diperlakukan sebagai tanggal biasa —
+// skornya dibatasi. Menangkal kasus seperti tanggal rapat/konsultasi
+// yang bukan tanggal lahir.
+const BIRTH_TRIGGER_RE = /tanggal\s+lahir|tgl\.?\s*lahir|\blah[iu]r\b|dilahirkan|kelahiran|\bttl\b/i;
+const DATE_CAPPED_SCORE = 15;
+
 // ---------------------------------------------------------------------------
 // Util internal
 // ---------------------------------------------------------------------------
@@ -176,6 +183,7 @@ function scoreMessage(text, options = {}) {
     // agar repetisi tidak menggelembungkan skor) ---
     const kept = dedupeOverlapping(regexHits);
     const idTriggerPresent = TRIGGER_GROUPS.id.some((re) => re.test(text));
+    const birthTriggerPresent = BIRTH_TRIGGER_RE.test(text);
 
     let maxSignal = 0;
     const categories = new Set();
@@ -185,6 +193,10 @@ function scoreMessage(text, options = {}) {
         if (h.patternId === 'NIK_KK' && SIXTEEN_DIGITS.test(h.matched.replace(/\D/g, '')) && !idTriggerPresent) {
             pts = Math.min(pts, NIK_CAPPED_SCORE);
             note += ' [16-digit tanpa trigger identitas -> dibatasi 40]';
+        }
+        if ((h.patternId === 'TGL_LAHIR' || h.patternId === 'TGL_LAHIR_ID') && !birthTriggerPresent) {
+            pts = Math.min(pts, DATE_CAPPED_SCORE);
+            note += ' [tanggal tanpa trigger kelahiran -> dibatasi 15]';
         }
         breakdown.push({ kind: 'regex', label: h.patternId, points: pts, detail: note });
         if (pts > maxSignal) maxSignal = pts;
@@ -249,6 +261,22 @@ function scoreMessage(text, options = {}) {
             breakdown.push({ kind: 'trigger', label: 'TRIGGER', points: TRIGGER_BOOST,
                 detail: `konteks personal: ${group}` });
         }
+    }
+    // --- 4b. Boost identifikasi diri: "saya/aku/gue/gw" + entitas PER.
+    // Hanya aktif jika NER menemukan PER (mencegah FP seperti
+    // "saya ke Jakarta"), dan tidak double dengan grup trigger 'name'
+    // yang sudah memberi boost (mis. "nama saya Budi").
+    const SELF_ID_RE = /\b(saya|aku|gue|gw)\b/i;
+    const nameTriggerFired = TRIGGER_GROUPS.name.some((re) => re.test(text));
+    const hasPerEntity = nerEntities.some(
+        (e) => e.entity_group === 'PER'
+            && (e.score ?? 0) >= ModelConfig.CONFIDENCE_MIN
+            && !allow.has(normValue(e.word))
+    );
+    if (hasPerEntity && SELF_ID_RE.test(text) && !nameTriggerFired) {
+        trigBoost += TRIGGER_BOOST;
+        breakdown.push({ kind: 'trigger', label: 'TRIGGER', points: TRIGGER_BOOST,
+            detail: 'identifikasi diri: saya/aku/gue + nama (PER)' });
     }
     if (trigBoost > TRIGGER_BOOST_CAP) {
         breakdown.push({ kind: 'trigger', label: 'CAP', points: 0,
