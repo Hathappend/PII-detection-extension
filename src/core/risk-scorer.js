@@ -102,7 +102,7 @@ const TRIGGER_GROUPS = {
     ],
     address: [/\btinggal di\b/i, /\balamat\b/i, /domisili/i],
     birth: [/tanggal\s+lahir/i, /\blah[iu]r\b/i, /dilahirkan/i, /kota kelahiran/i, /\bttl\b/i],
-    id: [/\bnik\b/i, /\bktp\b/i, /\bkk\b/i, /nuptk/i, /npwp/i, /paspor/i, /no\.?\s*sim\b/i],
+    id: [/\bnik\b/i, /\bktp\b/i, /\bkk\b/i, /nuptk/i, /npwp/i, /paspor/i, /no\.?\s*sim\b/i, /\bsim\b/i],
     work: [/pekerjaan/i, /profesi/i, /\bbekerja\b/i],
 };
 const TRIGGER_BOOST = 10;

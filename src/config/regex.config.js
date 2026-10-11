@@ -50,7 +50,9 @@ const RegexConfig = {
         {
             id: 'PASPOR',
             name: 'Nomor Paspor',
-            regex: /\b[A-Za-z]\d{7}\b/g
+            // Format Indonesia: 1-2 huruf + 6-7 digit (7-9 karakter).
+            // Contoh: C1234567, AB123456. Definisi Microsoft DLP 2025.
+            regex: /\b[A-Za-z]{1,2}\d{6,7}\b/g
         },
         {
             id: 'SIM',
@@ -58,7 +60,12 @@ const RegexConfig = {
             // Dijangkar trigger: \d{12} polos juga match nomor HP 12 digit
             // (false positive). Contoh match: "SIM 123456789012", "no sim: ...",
             // "SIM saya 123456789012". Kata penghubung (saya/no/nomor) opsional.
-            regex: /(?:\bsim\b\s*(?:saya\s+)?(?:no\.?|nomor)?\s*[:\-]?\s*)(\d{12})/gi
+            // CATATAN 2024: Nomor SIM baru = NIK (16 digit, berlaku Jul 2024).
+            // SIM lama 12 digit tetap berlaku s/d masa berlaku habis (5 thn).
+            // Pola ini terima 12 digit (lama) atau 16 digit (baru=NIK).
+            // Urutan (\d{16}|\d{12}) penting: alternation regex ordered,
+            // \d{12} dulu akan memotong 16 digit menjadi 12.
+            regex: /(?:\bsim\b\s*(?:saya\s+)?(?:no\.?|nomor)?\s*[:\-]?\s*)(\d{16}|\d{12})/gi
         },
         {
             id: 'NISN',
