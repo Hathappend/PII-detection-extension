@@ -72,13 +72,20 @@ async function analyze(text) {
 
     // Jalur penuh: regex + NER.
     let nerEntities = [];
+    let nerRawCount = -1;
     if (clean.length >= ModelConfig.MIN_CHARS_FOR_NER) {
         try {
-            nerEntities = NerPostprocess.clean(await NerClient.extractEntities(clean));
+            const raw = await NerClient.extractEntities(clean);
+            nerRawCount = raw.length;
+            nerEntities = NerPostprocess.clean(raw);
+            if (raw.length > 0) {
+                console.log('[PromptGuard] NER mentah:', JSON.stringify(raw.map((e) => [e.entity_group, e.word, +e.score.toFixed(2)])));
+            }
         } catch (err) {
             console.warn('[PromptGuard] NER gagal, lanjut dengan regex saja.', err);
         }
     }
+    if (nerRawCount === 0) console.log('[PromptGuard] NER: tidak ada entitas terdeteksi.');
 
     const result = RiskScorer.scoreMessage(clean, { regexHits, nerEntities });
     return { ...result, summary: summarize(result, regexHits), nerSkipped: false };

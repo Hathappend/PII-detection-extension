@@ -48,11 +48,19 @@ try {
     sh(`npx esbuild entry.js --bundle --format=esm --platform=browser --minify --outfile=${join(VENDOR, 'transformers.js')}`, tmp);
 
     // File WASM onnxruntime-web (dimuat saat runtime via wasmPaths).
+    // CATATAN: selain .wasm, file glue .mjs (Emscripten) juga WAJIB ikut —
+    // onnxruntime-web melakukan dynamic import() ke "<nama>.mjs" saat init.
+    // Tanpa ini: "no available backend found / Failed to fetch ... .mjs".
     const ortDist = join(tmp, 'node_modules', 'onnxruntime-web', 'dist');
     const wasms = readdirSync(ortDist).filter((f) => f.endsWith('.wasm'));
     if (wasms.length === 0) throw new Error('tidak ada file .wasm di onnxruntime-web/dist');
     for (const w of wasms) cpSync(join(ortDist, w), join(VENDOR, w));
     console.log(`[fetch-vendor] ${wasms.length} file wasm disalin.`);
+    const mjsGlue = wasms
+        .map((w) => w.replace(/\.wasm$/, '.mjs'))
+        .filter((f) => existsSync(join(ortDist, f)));
+    for (const f of mjsGlue) cpSync(join(ortDist, f), join(VENDOR, f));
+    console.log(`[fetch-vendor] ${mjsGlue.length} file glue .mjs disalin.`);
 
     writeFileSync(join(VENDOR, 'VERSION.txt'),
         `@huggingface/transformers@${VERSION} (bundle ESM, esbuild)\n` +
