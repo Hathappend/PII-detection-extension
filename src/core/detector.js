@@ -48,7 +48,16 @@ function summarize(result, regexHits) {
     const parts = [];
     for (const b of result.breakdown) {
         if (b.points <= 0) continue;
-        if (b.kind === 'regex') parts.push(names.get(b.label) || b.label);
+        if (b.kind === 'regex') {
+            let label = names.get(b.label) || b.label;
+            // Tanggal yang di-cap (bukan tanggal lahir) tampilkan sebagai
+            // "Tanggal" saja, bukan "Tanggal Lahir" — agar tidak menyesatkan.
+            if ((b.label === 'TGL_LAHIR' || b.label === 'TGL_LAHIR_ID')
+                && (b.detail || '').includes('tanpa trigger kelahiran')) {
+                label = 'Tanggal';
+            }
+            parts.push(label);
+        }
         else if (b.kind === 'ner') parts.push(NER_GROUP_NAMES[b.label] || b.label);
     }
     // Unik — tampilkan semua jenis yang terdeteksi (user butuh tahu
