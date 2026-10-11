@@ -51,8 +51,9 @@ function summarize(result, regexHits) {
         if (b.kind === 'regex') parts.push(names.get(b.label) || b.label);
         else if (b.kind === 'ner') parts.push(NER_GROUP_NAMES[b.label] || b.label);
     }
-    // Unik, maksimal 3 jenis.
-    return [...new Set(parts)].slice(0, 3);
+    // Unik — tampilkan semua jenis yang terdeteksi (user butuh tahu
+    // semuanya, bukan hanya 3 pertama).
+    return [...new Set(parts)];
 }
 
 async function analyze(text) {
