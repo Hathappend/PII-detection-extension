@@ -56,13 +56,16 @@ const RegexConfig = {
             id: 'SIM',
             name: 'Nomor SIM',
             // Dijangkar trigger: \d{12} polos juga match nomor HP 12 digit
-            // (false positive). Contoh match: "SIM 123456789012", "no sim: ..."
-            regex: /(?:\bsim\b\s*(?:no\.?|nomor)?\s*[:\-]?\s*)(\d{12})/gi
+            // (false positive). Contoh match: "SIM 123456789012", "no sim: ...",
+            // "SIM saya 123456789012". Kata penghubung (saya/no/nomor) opsional.
+            regex: /(?:\bsim\b\s*(?:saya\s+)?(?:no\.?|nomor)?\s*[:\-]?\s*)(\d{12})/gi
         },
         {
             id: 'NISN',
             name: 'NISN',
-            regex: /\b\d{10}\b/g
+            // Dijangkar trigger: \d{10} polos terlalu berisiko FP
+            // (kode voucher, nomor acak). Contoh: "NISN 1234567890".
+            regex: /(?:\bnisn\b\s*(?:saya\s+)?(?:no\.?|nomor)?\s*[:\-]?\s*)(\d{10})/gi
         },
         {
             id: 'NIM',
@@ -159,6 +162,14 @@ const RegexConfig = {
             // pemisah spasi/strip/titik. \b di ujung mencegah 16 digit
             // (kode voucher) ikut ke-match.
             regex: /\b(?:\+62|62|0)8\d{2}[\s\-.]?\d{3,4}[\s\-.]?\d{3,4}\b/g
+        },
+        {
+            id: 'NO_TELP',
+            name: 'Nomor Telepon (Rumah/Kantor)',
+            // Format: kode area 0XX/0XXX (021, 022, 031, 061, 0274, dll)
+            // + nomor 5-8 digit. (?!8) mengecualikan 08xx (nomor HP).
+            // Contoh: 021-5551234, (022) 5551234, 0315551234.
+            regex: /\(?\b0(?!8)\d{2,3}\)?[\s\-.]?\d{5,8}\b/g
         },
         {
             id: 'EMAIL',

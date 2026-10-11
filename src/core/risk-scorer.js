@@ -44,6 +44,7 @@ const SIGNAL_SCORES = {
     NO_BUKU_NIKAH:     { score: 55, category: 'id_number' },
     // --- Kontak ---
     NO_HP:             { score: 70, category: 'contact' },
+    NO_TELP:           { score: 70, category: 'contact' },
     EMAIL:             { score: 70, category: 'contact' },
     // --- Nama kontekstual (butuh NER/konteks sebagai penguat) ---
     NAMA_KONTEKS:      { score: 55, category: 'name' },
