@@ -43,6 +43,22 @@ const RegexConfig = {
             regex: /\b([1-9][1-9]\d{14})\b/g
         },
         {
+            id: 'NIP',
+            name: 'NIP (Pegawai Negeri)',
+            // Format: 18 digit = TGL_LAHIR(8:YYYYMMDD) + TMT(6:YYYYMM) +
+            // JNS_KELAMIN(1) + NO_URUT(3). 18 digit sangat distinctive,
+            // tidak perlu trigger. Contoh: 198505012010011001.
+            regex: /\b\d{18}\b/g
+        },
+        {
+            id: 'KARTU_KREDIT',
+            name: 'Kartu Kredit/Debit',
+            // WAJIB trigger: 16 digit polos tabrakan dengan NIK.
+            // Trigger: kartu kredit/debit, cc, credit/debit card, no kartu.
+            // Format: 16 digit, boleh dipisah spasi/strip per 4 digit.
+            regex: /(?:kartu\s*kredit|kartu\s*debit|\bcc\b|credit\s*card|debit\s*card|no\.?\s*kartu|nomor\s*kartu)\s*(?:saya\s+)?[:\-]?\s*(\d{4}[\s\-]?\d{4}[\s\-]?\d{4}[\s\-]?\d{4})/gi
+        },
+        {
             id: 'NPWP',
             name: 'Nomor NPWP',
             regex: /\b\d{2}[\.\-]?\d{3}[\.\-]?\d{3}[\.\-]?\d{1}[\.\-]?\d{3}[\.\-]?\d{3}\b/g

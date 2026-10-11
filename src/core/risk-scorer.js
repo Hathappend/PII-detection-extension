@@ -32,6 +32,8 @@ const DEFAULT_THRESHOLDS = { warn: 20, redact: 55, block: 85 };
 const SIGNAL_SCORES = {
     // --- ID terstruktur: vonis hampir pasti ---
     NIK_KK:            { score: 80, category: 'id_number' },
+    NIP:               { score: 85, category: 'id_number' },
+    KARTU_KREDIT:      { score: 85, category: 'id_number' },
     NPWP:              { score: 80, category: 'id_number' },
     PASPOR:            { score: 80, category: 'id_number' },
     NO_REKENING:       { score: 80, category: 'id_number' },
@@ -102,7 +104,7 @@ const TRIGGER_GROUPS = {
     ],
     address: [/\btinggal di\b/i, /\balamat\b/i, /domisili/i],
     birth: [/tanggal\s+lahir/i, /\blah[iu]r\b/i, /dilahirkan/i, /kota kelahiran/i, /\bttl\b/i],
-    id: [/\bnik\b/i, /\bktp\b/i, /\bkk\b/i, /nuptk/i, /npwp/i, /paspor/i, /no\.?\s*sim\b/i, /\bsim\b/i],
+    id: [/\bnik\b/i, /\bktp\b/i, /\bkk\b/i, /nuptk/i, /npwp/i, /paspor/i, /no\.?\s*sim\b/i, /\bsim\b/i, /\bnip\b/i, /kartu\s*kredit/i, /kartu\s*debit/i, /\bcc\b/i],
     work: [/pekerjaan/i, /profesi/i, /\bbekerja\b/i],
 };
 const TRIGGER_BOOST = 10;
