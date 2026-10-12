@@ -1,20 +1,16 @@
-// detector.js — Orkestrator deteksi: regex + NER -> RiskScorer.
+// detector.js — Orkestrasi deteksi: regex + NER -> RiskScorer.
 //
-// Alur:
-//   analyze(text)
-//     1. scanRegex(text)      -> hits pola RegexConfig (dengan span)
-//     2. Jika sinyal regex saja sudah mencapai BLOCK -> selesai (hemat:
-//        inferensi NER tidak akan mengubah keputusan).
-//     3. NerClient.extractEntities(text) -> NerPostprocess.clean(...)
-//     4. RiskScorer.scoreMessage(...) -> { score, decision, breakdown }
+//   analyze(text):
+//     1. scanRegex        -> kandidat pola RegexConfig (dengan span)
+//     2. Jalur cepat: bila regex saja sudah BLOCK, NER dilewati
+//        (skor hanya bisa naik, keputusan tak berubah)
+//     3. NER -> NerPostprocess.clean -> kandidat entitas
+//     4. RiskScorer.scoreMessage -> { score, decision, breakdown }
 //
-// API:
-//   Detector.scanRegex(text) -> [{ patternId, name, start, end, matched }]
-//   Detector.analyze(text)   -> Promise<{ score, decision, breakdown,
-//                                         categories, summary }>
+// API: scanRegex(text), analyze(text) -> Promise<hasil + summary>
 const Detector = (() => {
 
-// Regex global itu stateful (lastIndex) -> selalu reset sebelum dipakai.
+// Regex global menyimpan lastIndex antar pemakaian -> selalu di-reset.
 function scanRegex(text) {
     const hits = [];
     for (const p of RegexConfig.PATTERNS) {
@@ -34,33 +30,10 @@ function scanRegex(text) {
     return hits;
 }
 
-// Nama ramah untuk label di breakdown (regex id -> nama Indonesia,
-// grup NER -> nama Indonesia).
-const NER_GROUP_NAMES = {
-    PER: 'Nama', LOC: 'Lokasi', GPE: 'Lokasi',
-    DAT: 'Tanggal', TIM: 'Waktu',
-    ORG: 'Nama organisasi', MISC: 'Data lain',
-};
-
-// Nama ramah-awam untuk pola regex (tanpa istilah teknis).
-const FRIENDLY_REGEX_NAMES = {
-    'TGL_LAHIR': 'Tanggal lahir',
-    'TGL_LAHIR_ID': 'Tanggal lahir',
-    'NAMA_KONTEKS': 'Nama',
-    'NAMA_ALIAS': 'Nama panggilan',
-    'NAMA_IBU_KANDUNG': 'Nama ibu',
-    'NAMA_AYAH_KANDUNG': 'Nama ayah',
-    'NIK_KK': 'NIK / No. KK',
-    'NO_HP': 'Nomor HP',
-    'NO_TELP': 'Nomor telepon',
-    'NO_REKENING': 'Nomor rekening',
-    'KARTU_KREDIT': 'Kartu kredit/debit',
-    'NIP': 'NIP',
-    'TEMPAT_LAHIR': 'Tempat lahir',
-};
-
+// Label ramah untuk ringkasan toast (tanpa istilah teknis).
+// Definisi di ScoringConfig.DISPLAY_NAMES.
 function friendlyName(label, fallback) {
-    return FRIENDLY_REGEX_NAMES[label] || NER_GROUP_NAMES[label] || fallback;
+    return ScoringConfig.DISPLAY_NAMES[label] || fallback;
 }
 
 function summarize(result, regexHits) {
@@ -70,20 +43,16 @@ function summarize(result, regexHits) {
     for (const b of result.breakdown) {
         if (b.points <= 0) continue;
         if (b.kind === 'regex') {
-            // Tanggal yang di-cap (bukan tanggal lahir) tampilkan sebagai
-            // "Tanggal" saja — langsung, tanpa lewat mapping.
-            if ((b.label === 'TGL_LAHIR' || b.label === 'TGL_LAHIR_ID')
-                && (b.detail || '').includes('tanpa trigger kelahiran')) {
+            // Tanggal yang dibatasi (bukan tanggal lahir) tampilkan
+            // sebagai "Tanggal" saja agar tidak menyesatkan.
+            if (b.dateCapped) {
                 parts.push('Tanggal');
             } else {
-                let label = names.get(b.label) || b.label;
-                parts.push(friendlyName(b.label, label));
+                parts.push(friendlyName(b.label, names.get(b.label) || b.label));
             }
         }
         else if (b.kind === 'ner') parts.push(friendlyName(b.label, b.label));
     }
-    // Unik — tampilkan semua jenis yang terdeteksi (user butuh tahu
-    // semuanya, bukan hanya 3 pertama).
     return [...new Set(parts)];
 }
 

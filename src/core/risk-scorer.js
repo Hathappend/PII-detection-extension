@@ -1,156 +1,38 @@
-// risk-scorer.js — Decision layer untuk detektor hybrid (regex + NER).
+// risk-scorer.js — Lapisan keputusan untuk detektor hybrid (regex + NER).
 //
-// Masalah yang dipecahkan: output NER mentah (PER/LOC/...) BUKAN vonis PII.
-// "Jakarta" di "Jakarta macet banget" tidak setara risikonya dengan
+// Output NER mentah (PER/LOC/...) bukan vonis PII: "Jakarta" pada
+// "Jakarta macet banget" tidak setara risikonya dengan
 // "Budi Santoso, 081234567890". Modul ini mengubah kandidat deteksi
-// menjadi SATU skor risiko 0-100 per pesan.
+// menjadi satu skor risiko 0-100 per pesan.
 //
-//   regex (ID terstruktur, presisi tinggi) + NER (nama/lokasi/tanggal)
-//     -> kandidat -> RiskScorer.scoreMessage -> skor -> pass|warn|redact|block
+// Alur: regex (ID terstruktur) + NER (nama/lokasi/tanggal) -> kandidat
+//       -> scoreMessage -> skor -> pass | warn | redact | block
 //
-// Tanpa dependensi. Bentuk IIFE agar tidak mengotori global scope;
-// API publik: RiskScorer.scoreMessage, RiskScorer.DEFAULT_THRESHOLDS,
-// RiskScorer.DECISIONS.
+// Seluruh bobot dan ambang baca dari ScoringConfig (src/config/).
+// Tanpa dependensi. API publik: scoreMessage, DECISIONS.
 const RiskScorer = (() => {
 
 const DECISIONS = {
-    PASS: 'pass',     // bukan PII / risiko dapat diabaikan
-    WARN: 'warn',      // beri peringatan, biarkan user memutuskan
-    REDACT: 'redact', // sensor / minta konfirmasi sebelum kirim
-    BLOCK: 'block',   // tahan: tombol kirim + Enter dimatikan
+    PASS: 'pass',
+    WARN: 'warn',
+    REDACT: 'redact',
+    BLOCK: 'block',
 };
-
-// Threshold default. Dibias ke recall (firewall prompt): lebih baik
-// warn berlebihan daripada satu NIK lolos.
-const DEFAULT_THRESHOLDS = { warn: 20, redact: 55, block: 85 };
-
-// ---------------------------------------------------------------------------
-// Skor sinyal per pola regex (pattern id -> {score, category}).
-// ID terstruktur = skor langsung tinggi. Nama/lokasi kontekstual = skor
-// menengah, naik lewat ko-okurensi. Atribut Tier-3 = skor rendah.
-// ---------------------------------------------------------------------------
-const SIGNAL_SCORES = {
-    // --- ID terstruktur: vonis hampir pasti ---
-    NIK_KK:            { score: 80, category: 'id_number' },
-    NIP:               { score: 85, category: 'id_number' },
-    KARTU_KREDIT:      { score: 85, category: 'id_number' },
-    NPWP:              { score: 80, category: 'id_number' },
-    PASPOR:            { score: 80, category: 'id_number' },
-    NO_REKENING:       { score: 80, category: 'id_number' },
-    TANDA_TANGAN_DIGITAL: { score: 80, category: 'id_number' },
-    // Pola digit longgar (overlap dengan nomor HP) -> 70, bukan 80.
-    SIM:               { score: 70, category: 'id_number' },
-    NISN:              { score: 70, category: 'id_number' },
-    NIM:               { score: 70, category: 'id_number' },
-    NO_AKTA_LAHIR:     { score: 55, category: 'id_number' },
-    NO_BUKU_NIKAH:     { score: 55, category: 'id_number' },
-    // --- Kontak ---
-    NO_HP:             { score: 70, category: 'contact' },
-    NO_TELP:           { score: 70, category: 'contact' },
-    EMAIL:             { score: 70, category: 'contact' },
-    // --- Nama kontekstual (butuh NER/konteks sebagai penguat) ---
-    NAMA_KONTEKS:      { score: 55, category: 'name' },
-    NAMA_ALIAS:        { score: 55, category: 'name' },
-    NAMA_IBU_KANDUNG:  { score: 55, category: 'name' },
-    NAMA_AYAH_KANDUNG: { score: 55, category: 'name' },
-    // --- Kelahiran ---
-    TGL_LAHIR:         { score: 45, category: 'birth' },
-    TGL_LAHIR_ID:      { score: 45, category: 'birth' },
-    TEMPAT_LAHIR:      { score: 30, category: 'birth' },
-    // --- Pekerjaan / atribut ---
-    PROFESI:           { score: 25, category: 'work' },
-    GELAR_AKADEMIK:    { score: 25, category: 'work' },
-    AGAMA_KONTEKS:     { score: 15, category: 'personal' },
-    STATUS_PERKAWINAN: { score: 15, category: 'personal' },
-    GENDER:            { score: 15, category: 'personal' },
-    KEWARGANEGARAAN:   { score: 15, category: 'personal' },
-    GOL_DARAH:         { score: 15, category: 'personal' },
-    CIRI_FISIK:        { score: 15, category: 'personal' },
-};
-const DEFAULT_SIGNAL = { score: 30, category: 'other' };
-
-// Skor entitas NER. Disengaja RENDAH: nama/lokasi/tanggal yang berdiri
-// sendiri = risiko rendah; naik lewat ko-okurensi. Mencakup label Xenova
-// (PER/ORG/LOC/MISC) dan label tambahan model cahya (GPE/DAT/TIM).
-const NER_SCORES = {
-    PER:  { score: 15, category: 'name' },
-    LOC:  { score: 10, category: 'location' },
-    GPE:  { score: 10, category: 'location' },
-    DAT:  { score: 12, category: 'birth' },
-    TIM:  { score: 8,  category: 'birth' },
-    ORG:  { score: 8,  category: 'org' },
-    MISC: { score: 5,  category: 'misc' },
-};
-const NER_TOTAL_CAP = 25; // kontribusi NER dibatasi agar tidak dominan
-
-// ---------------------------------------------------------------------------
-// Trigger konteks personal: menaikkan skor kandidat yang berdekatan.
-// Satu grup trigger = +10, total boost dibatasi +20.
-// ---------------------------------------------------------------------------
-const TRIGGER_GROUPS = {
-    name: [
-        /\bnamaku\b/i,
-        /nama\s+(saya|aku|gw|gue)\b/i,
-        /nama\s+(ibu|ayah)/i,
-        /\bibu\s+saya\b/i,
-        /panggil\s+(saya|aku)\b/i,
-    ],
-    contact: [
-        /hubungi/i,
-        /kontak\s+(saya|aku)/i,
-        /\bemail\s+(saya|aku)\b/i,
-        /\bemailku\b/i,
-        /nomor\s+(hp|telepon|telp|wa)\b/i,
-    ],
-    address: [/\btinggal di\b/i, /\balamat\b/i, /domisili/i],
-    birth: [/tanggal\s+lahir/i, /\blah[iu]r\b/i, /dilahirkan/i, /kota kelahiran/i, /\bttl\b/i],
-    id: [/\bnik\b/i, /\bktp\b/i, /\bkk\b/i, /nuptk/i, /npwp/i, /paspor/i, /no\.?\s*sim\b/i, /\bsim\b/i, /\bnip\b/i, /kartu\s*kredit/i, /kartu\s*debit/i, /\bcc\b/i],
-    work: [/pekerjaan/i, /profesi/i, /\bbekerja\b/i],
-};
-const TRIGGER_BOOST = 10;
-const TRIGGER_BOOST_CAP = 20;
-
-// ---------------------------------------------------------------------------
-// Allowlist tokoh publik (SAMPEL — ganti dengan daftar produksi dari
-// Wikipedia/knowledge base). Entitas NER yang cocok persis
-// (case-insensitive) dikecualikan dari skor.
-// ---------------------------------------------------------------------------
-const PUBLIC_FIGURES = [
-    'Joko Widodo', 'Prabowo Subianto', 'Gibran Rakabuming Raka',
-    'Megawati Soekarnoputri', 'Jusuf Kalla', 'Anies Baswedan',
-    'Ganjar Pranowo', 'Ridwan Kamil',
-];
-
-// Aturan 16-digit: NIK/KK tanpa trigger identitas ("nik", "kk", "ktp",
-// "nuptk") diperlakukan sebagai kandidat meragukan — skornya dibatasi.
-// Menangkal kasus seperti kode voucher/member 16 digit.
-const SIXTEEN_DIGITS = /^\d{16}$/;
-const NIK_CAPPED_SCORE = 40;
-
-// Aturan tanggal: TGL_LAHIR tanpa trigger kelahiran ("lahir",
-// "tanggal lahir", "ttl", ...) diperlakukan sebagai tanggal biasa —
-// skornya dibatasi. Menangkal kasus seperti tanggal rapat/konsultasi
-// yang bukan tanggal lahir.
-const BIRTH_TRIGGER_RE = /tanggal\s+lahir|tgl\.?\s*lahir|\blah[iu]r\b|dilahirkan|kelahiran|\bttl\b/i;
-const DATE_CAPPED_SCORE = 15;
-// Cap untuk entitas tanggal dari NER (DAT/TIM) tanpa trigger kelahiran —
-// lebih rendah dari regex karena NER tidak punya konteks trigger.
-const NER_DATE_CAPPED_SCORE = 5;
 
 // ---------------------------------------------------------------------------
 // Util internal
 // ---------------------------------------------------------------------------
+
 function signalOf(patternId) {
-    return SIGNAL_SCORES[patternId] || DEFAULT_SIGNAL;
+    return ScoringConfig.SIGNAL_SCORES[patternId] || ScoringConfig.DEFAULT_SIGNAL;
 }
 
 function overlaps(a, b) {
     return a.start < b.end && b.start < a.end;
 }
 
-// Satu span teks = satu sinyal: bila beberapa pola match span yang
-// bertumpuk (mis. SIM dan NO_HP pada nomor yang sama), dipakai skor
-// tertinggi saja.
+// Satu span teks dihitung satu sinyal: bila beberapa pola cocok pada span
+// yang bertumpuk, dipakai skor tertinggi saja (anti repetisi).
 function dedupeOverlapping(hits) {
     const scored = hits.map((h) => ({ ...h, ...signalOf(h.patternId) }));
     scored.sort((a, b) => b.score - a.score || (b.end - b.start) - (a.end - a.start));
@@ -162,159 +44,185 @@ function dedupeOverlapping(hits) {
     return kept;
 }
 
-// Normalisasi nilai entitas untuk deduplikasi.
 function normValue(word) {
     return String(word).toLowerCase().replace(/\s+/g, ' ').trim();
 }
 
 // ---------------------------------------------------------------------------
-// scoreMessage(text, { regexHits, nerEntities, thresholds, publicFigures })
-//
-// regexHits:   [{ patternId, start, end, matched }] — dari Detector.
-// nerEntities: [{ word, entity_group, score }] — dari NER (sudah
-//              dibersihkan oleh NerPostprocess).
+// Tahap 1: sinyal regex
 // ---------------------------------------------------------------------------
-function scoreMessage(text, options = {}) {
-    const {
-        regexHits = [],
-        nerEntities = [],
-        thresholds = DEFAULT_THRESHOLDS,
-        publicFigures = PUBLIC_FIGURES,
-    } = options;
 
-    const breakdown = [];
-    const allow = new Set(publicFigures.map((n) => n.toLowerCase()));
-
-    // --- 1. Sinyal regex (dedupe span bertumpuk; pakai MAX bukan sum
-    // agar repetisi tidak menggelembungkan skor) ---
-    const kept = dedupeOverlapping(regexHits);
-    const idTriggerPresent = TRIGGER_GROUPS.id.some((re) => re.test(text));
-    const birthTriggerPresent = BIRTH_TRIGGER_RE.test(text);
+function scoreRegexHits(hits, text, ctx) {
+    const kept = dedupeOverlapping(hits);
+    const idTriggerPresent = ScoringConfig.TRIGGER_GROUPS.id.some((re) => re.test(text));
+    const birthTriggerPresent = ScoringConfig.BIRTH_TRIGGER_RE.test(text);
+    ctx.birthTriggerPresent = birthTriggerPresent;
 
     let maxSignal = 0;
-    const categories = new Set();
     for (const h of kept) {
         let pts = h.score;
         let note = `${h.patternId} "${h.matched}"`;
-        if (h.patternId === 'NIK_KK' && SIXTEEN_DIGITS.test(h.matched.replace(/\D/g, '')) && !idTriggerPresent) {
-            pts = Math.min(pts, NIK_CAPPED_SCORE);
-            note += ' [16-digit tanpa trigger identitas -> dibatasi 40]';
-        }
         let dateCapped = false;
+
+        if (h.patternId === 'NIK_KK'
+            && ScoringConfig.SIXTEEN_DIGIT_RE.test(h.matched.replace(/\D/g, ''))
+            && !idTriggerPresent) {
+            pts = Math.min(pts, ScoringConfig.NIK_CAPPED_SCORE);
+            note += ' [16 digit tanpa penanda identitas -> dibatasi]';
+        }
         if ((h.patternId === 'TGL_LAHIR' || h.patternId === 'TGL_LAHIR_ID') && !birthTriggerPresent) {
-            pts = Math.min(pts, DATE_CAPPED_SCORE);
-            note += ' [tanggal tanpa trigger kelahiran -> dibatasi 15]';
+            pts = Math.min(pts, ScoringConfig.DATE_CAPPED_SCORE);
+            note += ' [tanggal tanpa penanda kelahiran -> dibatasi]';
             dateCapped = true;
         }
-        breakdown.push({ kind: 'regex', label: h.patternId, points: pts, detail: note });
-        if (pts > maxSignal) maxSignal = pts;
-        // Tanggal yang dibatasi (bukan tanggal lahir) tidak ikut co-occurrence —
-        // sinyal lemah tidak boleh mengamplifikasi skor.
-        if (!dateCapped) categories.add(h.category);
-    }
 
-    // --- 2. Sinyal NER ---
-    // DEDUP: entitas yang sama (nilai ternormalisasi + grup) hanya dihitung
-    // sekali — "Budi Santoso" x5 tetap 15 poin, bukan 75. Entitas BERBEDA
-    // tetap dihitung masing-masing.
-    const seenEntities = new Set();
-    let nerTotal = 0;
-    for (const e of nerEntities) {
+        ctx.breakdown.push({ kind: 'regex', label: h.patternId, points: pts, detail: note, dateCapped });
+        if (pts > maxSignal) maxSignal = pts;
+        if (!dateCapped) ctx.categories.add(h.category);
+    }
+    return maxSignal;
+}
+
+// ---------------------------------------------------------------------------
+// Tahap 2: sinyal NER (dengan deduplikasi nilai yang sama)
+// ---------------------------------------------------------------------------
+
+function scoreNerEntities(entities, ctx) {
+    const allow = ctx.allowlist;
+    const seen = new Set();
+    let total = 0;
+
+    for (const e of entities) {
         const conf = e.score ?? 0;
-        const grp = NER_SCORES[e.entity_group];
+        const grp = ScoringConfig.NER_SCORES[e.entity_group];
         if (!grp) continue;
+
         if (conf < ModelConfig.CONFIDENCE_MIN) {
-            breakdown.push({ kind: 'ner', label: e.entity_group, points: 0,
+            ctx.breakdown.push({ kind: 'ner', label: e.entity_group, points: 0,
                 detail: `'${e.word}' dibuang (confidence ${conf.toFixed(2)})` });
             continue;
         }
         if (allow.has(normValue(e.word))) {
-            breakdown.push({ kind: 'ner', label: e.entity_group, points: 0,
-                detail: `'${e.word}' allowlisted (tokoh publik)` });
+            ctx.breakdown.push({ kind: 'ner', label: e.entity_group, points: 0,
+                detail: `'${e.word}' dikecualikan (tokoh publik)` });
             continue;
         }
         const key = `${e.entity_group}::${normValue(e.word)}`;
-        if (seenEntities.has(key)) {
-            breakdown.push({ kind: 'ner', label: e.entity_group, points: 0,
+        if (seen.has(key)) {
+            ctx.breakdown.push({ kind: 'ner', label: e.entity_group, points: 0,
                 detail: `'${e.word}' duplikat -> tidak dihitung lagi` });
             continue;
         }
-        seenEntities.add(key);
-        // Aturan tanggal NER: DAT/TIM tanpa trigger kelahiran bukan tanggal
-        // lahir — skor dibatasi dan tidak masuk kategori 'birth' (mencegah
-        // co-occurrence palsu seperti tanggal konsultasi + nama + alamat).
-        let nerPts = grp.score;
-        let nerNote = `'${e.word}' (${conf.toFixed(2)})`;
-        let nerDateCapped = false;
-        if ((e.entity_group === 'DAT' || e.entity_group === 'TIM') && !birthTriggerPresent) {
-            nerPts = Math.min(nerPts, NER_DATE_CAPPED_SCORE);
-            nerNote += ' [tanggal tanpa trigger kelahiran -> dibatasi, bukan birth]';
-            nerDateCapped = true;
+        seen.add(key);
+
+        let pts = grp.score;
+        let note = `'${e.word}' (${conf.toFixed(2)})`;
+        let dateCapped = false;
+        if ((e.entity_group === 'DAT' || e.entity_group === 'TIM') && !ctx.birthTriggerPresent) {
+            pts = Math.min(pts, ScoringConfig.NER_DATE_CAPPED_SCORE);
+            note += ' [tanggal tanpa penanda kelahiran -> dibatasi]';
+            dateCapped = true;
         }
-        nerTotal += nerPts;
-        // Sama seperti regex: tanggal yang dibatasi tidak ikut co-occurrence.
-        if (!nerDateCapped) categories.add(grp.category);
-        breakdown.push({ kind: 'ner', label: e.entity_group, points: nerPts,
-            detail: nerNote });
-    }
-    if (nerTotal > NER_TOTAL_CAP) {
-        breakdown.push({ kind: 'ner', label: 'CAP', points: 0,
-            detail: `total NER ${nerTotal} dibatasi ${NER_TOTAL_CAP}` });
-        nerTotal = NER_TOTAL_CAP;
-    }
-    if (nerTotal > maxSignal) maxSignal = nerTotal;
 
-    // --- 3. Ko-okurensi: tiap kategori BERBEDA di luar yang pertama = +15.
-    // "Budi Santoso" saja (1 kategori) != "Budi Santoso, 081234567890"
-    // (2 kategori). Dihitung dari SET kategori -> aman dari repetisi.
-    const nCat = categories.size;
-    const cooccur = Math.min(45, 15 * Math.max(0, nCat - 1));
-    if (cooccur > 0) {
-        breakdown.push({ kind: 'cooccur', label: 'CO-OCCURRENCE', points: cooccur,
-            detail: `${nCat} kategori berbeda: ${[...categories].join(', ')}` });
+        total += pts;
+        if (!dateCapped) ctx.categories.add(grp.category);
+        ctx.breakdown.push({ kind: 'ner', label: e.entity_group, points: pts, detail: note });
     }
 
-    // --- 4. Boost trigger konteks personal (sekali per grup -> aman
-    // dari repetisi) ---
-    let trigBoost = 0;
-    for (const [group, patterns] of Object.entries(TRIGGER_GROUPS)) {
+    if (total > ScoringConfig.NER_TOTAL_CAP) {
+        ctx.breakdown.push({ kind: 'ner', label: 'CAP', points: 0,
+            detail: `total NER ${total} dibatasi ${ScoringConfig.NER_TOTAL_CAP}` });
+        total = ScoringConfig.NER_TOTAL_CAP;
+    }
+    return total;
+}
+
+// ---------------------------------------------------------------------------
+// Tahap 3: ko-okurensi kategori berbeda
+// ---------------------------------------------------------------------------
+
+function scoreCooccurrence(ctx) {
+    const n = ctx.categories.size;
+    const pts = Math.min(45, 15 * Math.max(0, n - 1));
+    if (pts > 0) {
+        ctx.breakdown.push({ kind: 'cooccur', label: 'CO-OCCURRENCE', points: pts,
+            detail: `${n} kategori berbeda: ${[...ctx.categories].join(', ')}` });
+    }
+    return pts;
+}
+
+// ---------------------------------------------------------------------------
+// Tahap 4: boost konteks personal
+// ---------------------------------------------------------------------------
+
+const SELF_ID_RE = /\b(saya|aku|gue|gw)\b/i;
+
+function scoreTriggers(text, nerEntities, ctx) {
+    let boost = 0;
+
+    for (const [group, patterns] of Object.entries(ScoringConfig.TRIGGER_GROUPS)) {
         if (patterns.some((re) => re.test(text))) {
-            trigBoost += TRIGGER_BOOST;
-            breakdown.push({ kind: 'trigger', label: 'TRIGGER', points: TRIGGER_BOOST,
-                detail: `konteks personal: ${group}` });
+            boost += ScoringConfig.TRIGGER_BOOST;
+            ctx.breakdown.push({ kind: 'trigger', label: 'TRIGGER',
+                points: ScoringConfig.TRIGGER_BOOST, detail: `konteks personal: ${group}` });
         }
     }
-    // --- 4b. Boost identifikasi diri: "saya/aku/gue/gw" + entitas PER.
-    // Hanya aktif jika NER menemukan PER (mencegah FP seperti
-    // "saya ke Jakarta"), dan tidak double dengan grup trigger 'name'
-    // yang sudah memberi boost (mis. "nama saya Budi").
-    const SELF_ID_RE = /\b(saya|aku|gue|gw)\b/i;
-    const nameTriggerFired = TRIGGER_GROUPS.name.some((re) => re.test(text));
+
+    const nameTriggerFired = ScoringConfig.TRIGGER_GROUPS.name.some((re) => re.test(text));
     const hasPerEntity = nerEntities.some(
         (e) => e.entity_group === 'PER'
             && (e.score ?? 0) >= ModelConfig.CONFIDENCE_MIN
-            && !allow.has(normValue(e.word))
+            && !ctx.allowlist.has(normValue(e.word))
     );
     if (hasPerEntity && SELF_ID_RE.test(text) && !nameTriggerFired) {
-        trigBoost += TRIGGER_BOOST;
-        breakdown.push({ kind: 'trigger', label: 'TRIGGER', points: TRIGGER_BOOST,
-            detail: 'identifikasi diri: saya/aku/gue + nama (PER)' });
-    }
-    if (trigBoost > TRIGGER_BOOST_CAP) {
-        breakdown.push({ kind: 'trigger', label: 'CAP', points: 0,
-            detail: `boost trigger ${trigBoost} dibatasi ${TRIGGER_BOOST_CAP}` });
-        trigBoost = TRIGGER_BOOST_CAP;
+        boost += ScoringConfig.TRIGGER_BOOST;
+        ctx.breakdown.push({ kind: 'trigger', label: 'TRIGGER',
+            points: ScoringConfig.TRIGGER_BOOST,
+            detail: 'identifikasi diri: kata ganti orang pertama + nama (PER)' });
     }
 
+    if (boost > ScoringConfig.TRIGGER_BOOST_CAP) {
+        ctx.breakdown.push({ kind: 'trigger', label: 'CAP', points: 0,
+            detail: `boost trigger ${boost} dibatasi ${ScoringConfig.TRIGGER_BOOST_CAP}` });
+        boost = ScoringConfig.TRIGGER_BOOST_CAP;
+    }
+    return boost;
+}
+
+// ---------------------------------------------------------------------------
+// API utama
+// ---------------------------------------------------------------------------
+
+function scoreMessage(text, options = {}) {
+    const {
+        regexHits = [],
+        nerEntities = [],
+        thresholds = ScoringConfig.THRESHOLDS,
+        publicFigures = ScoringConfig.PUBLIC_FIGURES,
+    } = options;
+
+    const ctx = {
+        breakdown: [],
+        categories: new Set(),
+        birthTriggerPresent: false,
+        allowlist: new Set(publicFigures.map((n) => n.toLowerCase())),
+    };
+
+    const regexMax = scoreRegexHits(regexHits, text, ctx);
+    const nerTotal = scoreNerEntities(nerEntities, ctx);
+    const cooccur = scoreCooccurrence(ctx);
+    const trigBoost = scoreTriggers(text, nerEntities, ctx);
+
+    const maxSignal = Math.max(regexMax, nerTotal);
     const score = Math.min(100, maxSignal + cooccur + trigBoost);
     const decision =
         score >= thresholds.block ? DECISIONS.BLOCK :
         score >= thresholds.redact ? DECISIONS.REDACT :
         score >= thresholds.warn ? DECISIONS.WARN : DECISIONS.PASS;
 
-    return { score, decision, breakdown, categories: [...categories] };
+    return { score, decision, breakdown: ctx.breakdown, categories: [...ctx.categories] };
 }
 
-return { DECISIONS, DEFAULT_THRESHOLDS, PUBLIC_FIGURES, scoreMessage };
+return { DECISIONS, scoreMessage };
 
 })();

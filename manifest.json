@@ -11,6 +11,7 @@
         "src/config/app.config.js",
         "src/config/regex.config.js",
         "src/config/model.config.js",
+        "src/config/scoring.config.js",
         "src/core/risk-scorer.js",
         "src/core/ner-postprocess.js",
         "src/core/detector.js",

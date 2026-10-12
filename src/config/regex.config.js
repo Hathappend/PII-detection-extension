@@ -1,16 +1,16 @@
-// Kamus Pola Deteksi (Regex) untuk Data Sensitif
-// Ter-Update FULL sesuai Dokumen 1_Data_Identitas_Utama.md
+// RegexConfig — Kamus pola regex untuk deteksi data sensitif.
+//
+// Setiap pola: { id, name, regex }. Regex bersifat global; Detector
+// me-reset lastIndex sebelum dipakai. Pola yang membutuhkan kata
+// penanda (trigger) mencantumkannya di komentar.
 const RegexConfig = {
     PATTERNS: [
-        // ============================================
-        // A. NAMA & HUBUNGAN KELUARGA
-        // ============================================
+        // --- A. Nama & hubungan keluarga ---
         {
             id: 'NAMA_KONTEKS',
             name: 'Nama Lengkap',
-            // Strict Mode: Hanya menangkap jika ada kata eksplisit "nama"
-            // Menangkap: nama saya, nama aku, namaku, nama lengkap, nama adalah,
-            //           nama pasien (kasus umum di catatan medis/admin)
+            // Menangkap nama setelah kata penanda eksplisit: "nama saya",
+            // "namaku", "nama pasien", dsb. Maksimal 3 kata.
             regex: /(?:nama\s(?:saya|aku|adalah|lengkap|pasien)|namaku)\s+([a-zA-Z]+(?:\s[a-zA-Z]+){0,2})/gi
         },
         {
@@ -34,9 +34,7 @@ const RegexConfig = {
             regex: /\b(Prof\.|Dr\.|dr\.|Ir\.|H\.|Hj\.|S\.Kom|S\.T\.|S\.E\.|S\.Pd|M\.T\.|M\.Kom|M\.Sc|Ph\.D)\s+[A-Z][a-z]+/gi
         },
 
-        // ============================================
-        // B. NOMOR IDENTITAS RESMI NEGARA
-        // ============================================
+        // --- B. Nomor identitas resmi ---
         {
             id: 'NIK_KK',
             name: 'NIK / No. KK',
@@ -45,49 +43,42 @@ const RegexConfig = {
         {
             id: 'NIP',
             name: 'NIP (Pegawai Negeri)',
-            // Format: 18 digit = TGL_LAHIR(8:YYYYMMDD) + TMT(6:YYYYMM) +
-            // JNS_KELAMIN(1) + NO_URUT(3). 18 digit sangat distinctive,
-            // tidak perlu trigger. Contoh: 198505012010011001.
+            // 18 digit: YYYYMMDD (tgl lahir) + YYYYMM (TMT) + gender (1)
+            // + nomor urut (3). Cukup distinctive tanpa trigger.
             regex: /\b\d{18}\b/g
         },
         {
             id: 'KARTU_KREDIT',
             name: 'Kartu Kredit/Debit',
-            // WAJIB trigger: 16 digit polos tabrakan dengan NIK.
-            // Trigger: kartu kredit/debit, cc, credit/debit card, no kartu.
-            // Format: 16 digit, boleh dipisah spasi/strip per 4 digit.
+            // Wajib trigger: 16 digit tanpa konteks bertabrakan dengan NIK.
+            // Menerima 16 digit utuh atau dikelompokkan per 4 (spasi/strip).
             regex: /(?:kartu\s*kredit|kartu\s*debit|\bcc\b|credit\s*card|debit\s*card|no\.?\s*kartu|nomor\s*kartu)\s*(?:saya\s+)?[:\-]?\s*(\d{4}[\s\-]?\d{4}[\s\-]?\d{4}[\s\-]?\d{4})/gi
         },
         {
             id: 'NPWP',
             name: 'Nomor NPWP',
+            // Format 2-3-3-1-3-3 digit, pemisah titik/strip opsional.
             regex: /\b\d{2}[\.\-]?\d{3}[\.\-]?\d{3}[\.\-]?\d{1}[\.\-]?\d{3}[\.\-]?\d{3}\b/g
         },
         {
             id: 'PASPOR',
             name: 'Nomor Paspor',
-            // Format Indonesia: 1-2 huruf + 6-7 digit (7-9 karakter).
-            // Contoh: C1234567, AB123456. Definisi Microsoft DLP 2025.
+            // Format Indonesia: 1-2 huruf + 6-7 digit.
             regex: /\b[A-Za-z]{1,2}\d{6,7}\b/g
         },
         {
             id: 'SIM',
             name: 'Nomor SIM',
-            // Dijangkar trigger: \d{12} polos juga match nomor HP 12 digit
-            // (false positive). Contoh match: "SIM 123456789012", "no sim: ...",
-            // "SIM saya 123456789012". Kata penghubung (saya/no/nomor) opsional.
-            // CATATAN 2024: Nomor SIM baru = NIK (16 digit, berlaku Jul 2024).
-            // SIM lama 12 digit tetap berlaku s/d masa berlaku habis (5 thn).
-            // Pola ini terima 12 digit (lama) atau 16 digit (baru=NIK).
-            // Urutan (\d{16}|\d{12}) penting: alternation regex ordered,
-            // \d{12} dulu akan memotong 16 digit menjadi 12.
+            // Wajib trigger "sim": deret 12 digit tanpa konteks bertabrakan
+            // dengan nomor HP. Menerima 12 digit (format lama) atau 16 digit
+            // (format baru sejak Jul 2024 = NIK). Urutan alternation penting:
+            // \d{16} harus sebelum \d{12} agar tidak terpotong.
             regex: /(?:\bsim\b\s*(?:saya\s+)?(?:no\.?|nomor)?\s*[:\-]?\s*)(\d{16}|\d{12})/gi
         },
         {
             id: 'NISN',
             name: 'NISN',
-            // Dijangkar trigger: \d{10} polos terlalu berisiko FP
-            // (kode voucher, nomor acak). Contoh: "NISN 1234567890".
+            // Wajib trigger "nisn": 10 digit tanpa konteks rawan false positive.
             regex: /(?:\bnisn\b\s*(?:saya\s+)?(?:no\.?|nomor)?\s*[:\-]?\s*)(\d{10})/gi
         },
         {
@@ -106,9 +97,7 @@ const RegexConfig = {
             regex: /(?:nomor|no\.?)\s+(?:buku\s+nikah|akta\s+perkawinan)\s*[:\-]?\s*([a-zA-Z0-9\/\-]+)/gi
         },
 
-        // ============================================
-        // C. DATA DEMOGRAFI DASAR
-        // ============================================
+        // --- C. Data demografi ---
         {
             id: 'TEMPAT_LAHIR',
             name: 'Tempat Lahir',
@@ -117,11 +106,13 @@ const RegexConfig = {
         {
             id: 'TGL_LAHIR',
             name: 'Tanggal Lahir',
+            // Format numerik DD/MM/YYYY atau YYYY/MM/DD.
             regex: /\b(?:0[1-9]|[12][0-9]|3[01])[\/\-](?:0[1-9]|1[012])[\/\-](?:19|20)\d{2}\b|\b(?:19|20)\d{2}[\/\-](?:0[1-9]|1[012])[\/\-](?:0[1-9]|[12][0-9]|3[01])\b/g
         },
         {
             id: 'TGL_LAHIR_ID',
             name: 'Tanggal Lahir (nama bulan Indonesia)',
+            // Format "12 Mei 1998" — nama bulan Indonesia.
             regex: /\b([12]?\d|3[01])\s+(januari|februari|maret|april|mei|juni|juli|agustus|september|oktober|november|desember)\s+((?:19|20)\d{2})\b/gi
         },
         {
@@ -152,16 +143,13 @@ const RegexConfig = {
         {
             id: 'PROFESI',
             name: 'Pekerjaan/Profesi',
-            // Menangkap profesi 1-3 kata setelah kata pancingan.
-            // Varian "bekerja|kerja" WAJIB diikuti "sebagai" agar tidak
-            // false positive pada "saya kerja di Jakarta" (-> "di").
-            // Masih gap (butuh model): "kerjaan gw kuli" tanpa "sebagai".
+            // Profesi 1-3 kata setelah kata penanda. "bekerja/kerja" wajib
+            // diikuti "sebagai" untuk menghindari false positive
+            // ("saya kerja di Jakarta" bukan profesi).
             regex: /(?:(?:pekerjaan|profesi)(?:\s+saya)?(?:\s+adalah)?\s+(?:sebagai\s+)?|(?:bekerja|kerja)\s+sebagai\s+)([a-zA-Z]+(?:\s[a-zA-Z]+){0,2})/gi
         },
 
-        // ============================================
-        // D. DATA IDENTIFIKASI SPESIFIK LAINNYA
-        // ============================================
+        // --- D. Identifikasi spesifik lainnya ---
         {
             id: 'TANDA_TANGAN_DIGITAL',
             name: 'Tanda Tangan Digital',
@@ -173,25 +161,19 @@ const RegexConfig = {
             regex: /(?:tinggi\s+badan|berat\s+badan)(?:\s+saya)?\s*[:\-]?\s*\d+\s*(cm|kg)/gi
         },
 
-        // ============================================
-        // E. DATA KONTAK & KEUANGAN (Tier-1)
-        // Ditambahkan 2026-10-10: sebelumnya tidak ada pola kontak
-        // sama sekali — nomor HP & email lolos tanpa terdeteksi.
-        // ============================================
+        // --- E. Kontak & keuangan ---
         {
             id: 'NO_HP',
             name: 'Nomor HP',
-            // Format: 08xx (10-14 digit), 62xxx, +62xxx, dengan/tanpa
-            // pemisah spasi/strip/titik. \b di ujung mencegah 16 digit
-            // (kode voucher) ikut ke-match.
+            // Format 08xx/62xx/+62xx, 10-14 digit, pemisah opsional.
+            // \b di ujung mencegah 16 digit ikut tercocok.
             regex: /\b(?:\+62|62|0)8\d{2}[\s\-.]?\d{3,4}[\s\-.]?\d{3,4}\b/g
         },
         {
             id: 'NO_TELP',
             name: 'Nomor Telepon (Rumah/Kantor)',
-            // Format: kode area 0XX/0XXX (021, 022, 031, 061, 0274, dll)
-            // + nomor 5-8 digit. (?!8) mengecualikan 08xx (nomor HP).
-            // Contoh: 021-5551234, (022) 5551234, 0315551234.
+            // Kode area 0XX/0XXX + 5-8 digit, mis. 021-5551234, (022) 5551234.
+            // (?!8) mengecualikan 08xx agar tidak bertabrakan dengan NO_HP.
             regex: /\(?\b0(?!8)\d{2,3}\)?[\s\-.]?\d{5,8}\b/g
         },
         {
@@ -202,8 +184,7 @@ const RegexConfig = {
         {
             id: 'NO_REKENING',
             name: 'Nomor Rekening',
-            // WAJIB ada trigger ("no rekening"): deret 10-16 digit polos
-            // terlalu berisiko false positive tanpa konteks.
+            // Wajib trigger: 10-16 digit tanpa konteks rawan false positive.
             regex: /(?:no\.?\s*(?:rekening|rek)|nomor\s+rekening)\s*[:\-]?\s*(\d{10,16})/gi
         }
     ]

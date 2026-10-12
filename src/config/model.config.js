@@ -4,15 +4,15 @@
 // data yang dikirim ke server mana pun (syarat privasi PromptGuard).
 const ModelConfig = {
     // Model default: cahya/bert-base-indonesian-NER (uncased, 110MB q8).
-    // Dikonversi ke ONNX int8 2026-10-11, teruji unggul utk chat informal
+    // Dikonversi ke ONNX int8 2026-10-11. Teruji unggul untuk chat informal
     // Indonesia: lowercase terdeteksi, "jl melati no 10 sby" -> LOC.
     MODEL_ID: 'hathappend/cahya-bert-base-indonesian-ner-onnx',
 
     // Model lama (multilingual cased, ~180MB) sebagai cadangan:
     // MODEL_ID: 'Xenova/bert-base-multilingual-cased-ner-hrl',
 
-    QUANTIZED: true,          // pakai varian q8 (~180MB) agar unduhan ringan
-    CONFIDENCE_MIN: 0.5,     // entitas di bawah ini dibuang
+    QUANTIZED: true,          // varian terkuantisasi agar unduhan ringan
+    CONFIDENCE_MIN: 0.5,     // entitas di bawah ambang ini dibuang
     DEBOUNCE_MS: 700,        // jeda setelah berhenti mengetik sebelum NER jalan
     MIN_CHARS_FOR_NER: 12,   // teks lebih pendek dari ini: regex saja cukup
 
