@@ -1,8 +1,7 @@
 // scoring.config.js — Seluruh parameter tuning untuk risk scorer.
 //
-// File ini memisahkan DATA (bobot, threshold, trigger) dari LOGIKA
-// (risk-scorer.js). Untuk mengubah sensitivitas deteksi, cukup edit
-// file ini tanpa menyentuh kode scoring.
+// File ini memisahkan data tuning (bobot, ambang, trigger) dari logika
+// scoring di risk-scorer.js.
 const ScoringConfig = {
 
     // Ambang keputusan skor 0-100.

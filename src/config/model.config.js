@@ -1,14 +1,14 @@
-// Konfigurasi model NER (Named Entity Recognition).
+// ModelConfig — Konfigurasi model NER.
 //
-// Model berjalan 100% di dalam browser via transformers.js — tidak ada
-// data yang dikirim ke server mana pun (syarat privasi PromptGuard).
+// Model berjalan di dalam browser via transformers.js; tidak ada data
+// yang dikirim ke server.
 const ModelConfig = {
-    // Model default: cahya/bert-base-indonesian-NER (uncased, 110MB q8).
-    // Dikonversi ke ONNX int8 2026-10-11. Teruji unggul untuk chat informal
-    // Indonesia: lowercase terdeteksi, "jl melati no 10 sby" -> LOC.
+    // cahya/bert-base-indonesian-NER (uncased, 110MB terkuantisasi).
+    // Dikonversi ke ONNX int8 2026-10-11. Cocok untuk chat informal
+    // Indonesia: nama lowercase terdeteksi, "jl melati no 10 sby" -> LOC.
     MODEL_ID: 'hathappend/cahya-bert-base-indonesian-ner-onnx',
 
-    // Model lama (multilingual cased, ~180MB) sebagai cadangan:
+    // Cadangan (multilingual cased, ~180MB):
     // MODEL_ID: 'Xenova/bert-base-multilingual-cased-ner-hrl',
 
     QUANTIZED: true,          // varian terkuantisasi agar unduhan ringan
@@ -16,9 +16,7 @@ const ModelConfig = {
     DEBOUNCE_MS: 700,        // jeda setelah berhenti mengetik sebelum NER jalan
     MIN_CHARS_FOR_NER: 12,   // teks lebih pendek dari ini: regex saja cukup
 
-    // Lokasi bundle transformers.js (WAJIB dibundle lokal di folder
-    // vendor/ — jangan pakai CDN agar lolos Content Security Policy).
-    // Jika file tidak ada, NER nonaktif diam-diam (mode degradasi:
-    // regex + risk scorer tetap berjalan).
+    // Bundle transformers.js lokal di folder vendor/ (CSP memblokir CDN).
+    // Bila file tidak ada, NER nonaktif dan deteksi berjalan dengan regex saja.
     VENDOR_LIB: 'vendor/transformers.js',
 };
