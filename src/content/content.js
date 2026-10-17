@@ -19,10 +19,10 @@ class ContentScript {
 
     init() {
         if (!this.activePlatform) {
-            console.log('[PromptGuard] Web ini tidak didukung.');
+            // console.log('[PromptGuard] Web ini tidak didukung.');
             return;
         }
-        console.log(`[PromptGuard] Inisialisasi untuk ${this.activePlatform.name} berhasil.`);
+        // console.log(`[PromptGuard] Inisialisasi untuk ${this.activePlatform.name} berhasil.`);
         this.setupMessageBridge();
         this.startObserver();
     }
@@ -72,7 +72,7 @@ class ContentScript {
             if (inputField && !this.isMonitoring) {
                 this.isMonitoring = true;
                 this.attachInputListener(inputField);
-                console.log(`[PromptGuard] Memantau ketikan di ${this.activePlatform.name}...`);
+                // console.log(`[PromptGuard] Memantau ketikan di ${this.activePlatform.name}...`);
             } else if (!inputField && this.isMonitoring) {
                 this.isMonitoring = false;
             }

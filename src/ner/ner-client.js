@@ -66,7 +66,7 @@ async function createPipeline(progressCallback) {
     if (progressCallback) options.progress_callback = progressCallback;
 
     const pipe = await pipeline('token-classification', ModelConfig.MODEL_ID, options);
-    console.log('[PromptGuard] Model NER siap:', ModelConfig.MODEL_ID);
+    // console.log('[PromptGuard] Model NER siap:', ModelConfig.MODEL_ID);
     return pipe;
 }
 
