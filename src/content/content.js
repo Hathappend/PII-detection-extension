@@ -89,6 +89,16 @@ class ContentScript {
             this.debounceTimer = setTimeout(() => this.analyzeText(text), ModelConfig.DEBOUNCE_MS);
         });
 
+        // Event 'input' tidak selalu menyala saat paste karena editor situs
+        // memprosesnya sendiri: baca isi field setelah paste selesai.
+        inputField.addEventListener('paste', () => {
+            setTimeout(() => {
+                const text = inputField.value || inputField.innerText || '';
+                clearTimeout(this.debounceTimer);
+                this.debounceTimer = setTimeout(() => this.analyzeText(text), ModelConfig.DEBOUNCE_MS);
+            }, 0);
+        });
+
         // Cegah pengiriman via Enter saat block atau redact.
         // Saat redact, Enter dibuka lagi setelah user menekan "Abaikan"
         // (override sadar risiko) di toast.
@@ -102,6 +112,16 @@ class ContentScript {
                 e.stopPropagation();
             }
         }, true);
+
+        // Draft yang dipulihkan setelah refresh tidak memicu event:
+        // analisis isi awal saat pasang + sekali lagi tunda 2 detik.
+        const analyzeExisting = () => {
+            const field = document.querySelector(this.activePlatform.inputSelector) || inputField;
+            const text = field.value || field.innerText || '';
+            if (text.trim()) this.analyzeText(text);
+        };
+        analyzeExisting();
+        setTimeout(analyzeExisting, 2000);
     }
 
     async analyzeText(text) {
