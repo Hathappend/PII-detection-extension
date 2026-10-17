@@ -17,7 +17,6 @@ const ScoringConfig = {
         NPWP:              { score: 80, category: 'id_number' },
         PASPOR:            { score: 80, category: 'id_number' },
         NO_REKENING:       { score: 80, category: 'id_number' },
-        TANDA_TANGAN_DIGITAL: { score: 80, category: 'id_number' },
         SIM:               { score: 70, category: 'id_number' },
         NISN:              { score: 70, category: 'id_number' },
         NIM:               { score: 70, category: 'id_number' },
@@ -40,7 +39,6 @@ const ScoringConfig = {
         GENDER:            { score: 15, category: 'personal' },
         KEWARGANEGARAAN:   { score: 15, category: 'personal' },
         GOL_DARAH:         { score: 15, category: 'personal' },
-        CIRI_FISIK:        { score: 15, category: 'personal' },
     },
     DEFAULT_SIGNAL: { score: 30, category: 'other' },
 

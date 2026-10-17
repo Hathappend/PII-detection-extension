@@ -11,7 +11,7 @@ ketikan -> debounce -> Detector.analyze -> keputusan -> UI
                               |
               +----------------+-----------------+
               |                                  |
-     RegexConfig (30 pola)              NER transformers.js
+     RegexConfig (28 pola)              NER transformers.js
      ID terstruktur, presisi            nama/lokasi/tanggal,
      tinggi (NIK, HP, email)            recall tinggi
               |                                  |
@@ -29,7 +29,7 @@ opsi "Tetap kirim"; **block** (≥85) → tombol kirim + Enter dimatikan.
 src/
 ├── config/
 │   ├── app.config.js      # selector DOM per platform + konstanta UI
-│   ├── regex.config.js    # 30 pola RegexConfig (id, nama, regex)
+│   ├── regex.config.js    # 28 pola RegexConfig (id, nama, regex)
 │   ├── model.config.js    # konfigurasi model NER (id, threshold, debounce)
 │   └── scoring.config.js  # bobot pola, ambang skor, trigger ko-okurensi
 ├── core/                  # logika inti, tanpa dependensi DOM

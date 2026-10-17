@@ -149,18 +149,6 @@ const RegexConfig = {
             regex: /(?:(?:pekerjaan|profesi)(?:\s+saya)?(?:\s+adalah)?\s+(?:sebagai\s+)?|(?:bekerja|kerja)\s+sebagai\s+)([a-zA-Z]+(?:\s[a-zA-Z]+){0,2})/gi
         },
 
-        // D. Identifikasi spesifik lainnya
-        {
-            id: 'TANDA_TANGAN_DIGITAL',
-            name: 'Tanda Tangan Digital',
-            regex: /\b(?:BEGIN (?:PGP|RSA) (?:SIGNATURE|PRIVATE KEY))\b/gi
-        },
-        {
-            id: 'CIRI_FISIK',
-            name: 'Ciri Fisik Khusus',
-            regex: /(?:tinggi\s+badan|berat\s+badan)(?:\s+saya)?\s*[:\-]?\s*\d+\s*(cm|kg)/gi
-        },
-
         // E. Kontak & keuangan
         {
             id: 'NO_HP',
