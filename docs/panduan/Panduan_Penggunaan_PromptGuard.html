@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<title>Panduan Penggunaan PromptGuard</title>
+<style>
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    color: #1e293b; line-height: 1.65; max-width: 780px; margin: 0 auto; padding: 40px 28px;
+  }
+  h1 { font-size: 28px; margin-bottom: 4px; }
+  .subtitle { color: #64748b; font-size: 15px; margin-bottom: 6px; }
+  .meta { color: #94a3b8; font-size: 12px; margin-bottom: 30px; }
+  h2 { font-size: 20px; margin-top: 38px; padding-bottom: 6px; border-bottom: 2px solid #e2e8f0; }
+  h3 { font-size: 16px; margin-top: 22px; }
+  p, li { font-size: 14.5px; }
+  figure { margin: 18px 0; text-align: center; page-break-inside: avoid; }
+  figure img { border: 1px solid #e2e8f0; border-radius: 10px; box-shadow: 0 4px 14px rgba(0,0,0,.06); max-width: 100%; }
+  figure img.popup { width: 290px; }
+  figcaption { font-size: 12.5px; color: #64748b; margin-top: 8px; }
+  table { border-collapse: collapse; width: 100%; margin: 14px 0; font-size: 14px; page-break-inside: avoid; }
+  th, td { border: 1px solid #e2e8f0; padding: 9px 12px; text-align: left; vertical-align: top; }
+  th { background: #f8fafc; }
+  code { background: #f1f5f9; padding: 2px 6px; border-radius: 5px; font-size: 13px; }
+  ol.steps > li, ul > li { margin-bottom: 8px; }
+  .note { background: #fffbeb; border: 1px solid #fde68a; border-radius: 8px; padding: 10px 14px; font-size: 14px; margin: 14px 0; page-break-inside: avoid; }
+  .badge { display: inline-block; font-size: 12px; font-weight: 700; padding: 2px 10px; border-radius: 10px; white-space: nowrap; }
+  .b-pass { background: #dcfce7; color: #166534; }
+  .b-warn { background: #fef3c7; color: #92400e; }
+  .b-redact { background: #fee2e2; color: #b91c1c; }
+  .b-block { background: #fecaca; color: #7f1d1d; }
+  @page { size: A4; margin: 18mm 15mm; }
+  @media print { body { padding: 0; max-width: none; } h2 { page-break-after: avoid; } }
+</style>
+</head>
+<body>
+
+<h1>🛡️ Panduan Penggunaan PromptGuard</h1>
+<div class="subtitle">Ekstensi Chrome pendeteksi kebocoran data pribadi (PII) pada prompt AI</div>
+<div class="meta">Versi 1.1 &middot; 17 Oktober 2026</div>
+
+<h2>1. Pengenalan</h2>
+<p><b>PromptGuard</b> adalah ekstensi Chrome yang melindungimu dari kebocoran data pribadi saat memakai chatbot AI seperti <b>ChatGPT</b> dan <b>Gemini</b>. Setiap kali kamu mengetik atau menempel prompt, PromptGuard memeriksa apakah ada data pribadi di dalamnya — misalnya NIK, nama, tanggal lahir, atau nomor telepon — lalu memberi peringatan sebelum prompt terkirim.</p>
+<p>Seluruh pemeriksaan berjalan <b>100% di perangkatmu</b>; tidak ada teks prompt yang dikirim ke server mana pun.</p>
+<h3>Cara kerja singkat</h3>
+<p>PromptGuard menggabungkan tiga lapisan: <b>pola</b> untuk data berstruktur (NIK, nomor KK, dsb.), <b>model AI (NER)</b> untuk mengenali nama, lokasi, dan tanggal dalam kalimat, serta <b>penilaian risiko</b> yang menggabungkan temuan menjadi empat tingkat peringatan. Detail teknis metode ini didokumentasikan terpisah di dokumen skripsi, bukan di panduan ini.</p>
+
+<h2>2. Instalasi</h2>
+<ol class="steps">
+  <li>Siapkan folder ekstensi <code>PII-detection-extension</code> di komputermu (hasil mengunduh/clone repositori).</li>
+  <li>Buka <code>chrome://extensions</code> di Chrome.</li>
+  <li>Aktifkan <b>Developer mode</b> (sakelar di kanan atas halaman).</li>
+  <li>Klik <b>Load unpacked</b>, lalu pilih folder <code>PII-detection-extension</code>.</li>
+  <li>Pastikan <b>Prompting Protection</b> muncul di daftar dan dalam keadaan aktif.</li>
+  <li>(Opsional) Klik ikon puzzle di toolbar Chrome, lalu <i>pin</i> PromptGuard agar ikonnya selalu terlihat.</li>
+  <li>Buka <code>chatgpt.com</code> atau <code>gemini.google.com</code> — ekstensi langsung aktif.</li>
+</ol>
+<div class="note">Langkah instalasi di atas belum disertai gambar karena halaman <code>chrome://extensions</code> tidak dapat diabadikan di lingkungan penyusunan panduan ini. Kamu bisa menambahkan dua tangkapan layar (tampilan Developer mode dan daftar ekstensi) dari Chrome di komputermu sendiri.</div>
+
+<h2>3. Mengunduh Model NER (sekali saja, opsional)</h2>
+<p>Model NER adalah komponen AI yang mengenali nama, lokasi, dan tanggal dalam kalimat. Model ini diunduh <b>satu kali saja</b> (±110MB), lalu tersimpan di browser.</p>
+<ol class="steps">
+  <li>Klik ikon <b>PromptGuard</b> di toolbar Chrome untuk membuka popup.</li>
+  <li>Jika model belum diunduh, tampilannya seperti ini — klik <b>⬇ Download Model NER</b>:</li>
+</ol>
+<figure>
+  <img class="popup" src="img/03-popup-belum-unduh.png" alt="Popup: model NER belum diunduh">
+  <figcaption>Gambar 1 — Popup saat model NER belum diunduh</figcaption>
+</figure>
+<ol class="steps" start="3">
+  <li>Tunggu proses unduhan selesai. <b>Jangan tutup tab</b> selama mengunduh:</li>
+</ol>
+<figure>
+  <img class="popup" src="img/04-popup-progress.png" alt="Popup: progres unduhan model NER">
+  <figcaption>Gambar 2 — Progres unduhan model NER</figcaption>
+</figure>
+<ol class="steps" start="4">
+  <li>Setelah selesai, status berubah menjadi <b>✓ Model NER siap</b>:</li>
+</ol>
+<figure>
+  <img class="popup" src="img/05-popup-siap.png" alt="Popup: model NER siap">
+  <figcaption>Gambar 3 — Model NER sudah siap dipakai</figcaption>
+</figure>
+<div class="note"><b>Catatan:</b> tanpa mengunduh model pun ekstensi tetap berfungsi (memakai pola dan penilaian risiko). Model NER menambah kemampuan mendeteksi nama, lokasi, dan tanggal yang ditulis tanpa pola khusus.</div>
+
+<h2>4. Cara Memakai</h2>
+<ul>
+  <li>Gunakan ChatGPT atau Gemini seperti biasa: <b>ketik</b> atau <b>tempel</b> prompt ke kolom chat.</li>
+  <li>PromptGuard menganalisis teks secara otomatis setiap kali kamu berhenti mengetik (atau selesai menempel).</li>
+  <li>Jika terdeteksi data pribadi, <b>toast peringatan</b> muncul di bagian atas layar beserta tingkat risikonya.</li>
+  <li>Tidak ada pengaturan yang perlu diubah untuk pemakaian sehari-hari.</li>
+</ul>
+
+<h2>5. Arti Tiap Tingkat Peringatan</h2>
+<table>
+  <tr><th style="width:110px">Tingkat</th><th>Tampilan</th><th>Arti &amp; tindakan</th></tr>
+  <tr>
+    <td><span class="badge b-pass">Pass</span></td>
+    <td>Tidak ada peringatan</td>
+    <td>Tidak terdeteksi data pribadi. Prompt aman dikirim.</td>
+  </tr>
+  <tr>
+    <td><span class="badge b-warn">Warn</span></td>
+    <td>Toast kuning <b>“Perhatian”</b></td>
+    <td>Ada indikasi data pribadi ringan. Kamu tetap bisa mengirim, tetapi periksa kembali prompt-mu.</td>
+  </tr>
+  <tr>
+    <td><span class="badge b-redact">Redact</span></td>
+    <td>Toast merah <b>“Tunggu Dulu”</b> + tombol <b>Abaikan</b></td>
+    <td>Data pribadi terdeteksi. Tombol kirim <b>dinonaktifkan</b> dan Enter diblokir. Hapus data tersebut dari prompt, atau klik <b>Abaikan</b> jika kamu sadar akan risikonya.</td>
+  </tr>
+  <tr>
+    <td><span class="badge b-block">Block</span></td>
+    <td>Toast merah <b>“Tidak Bisa Dikirim”</b></td>
+    <td>Data sangat sensitif terdeteksi. Prompt <b>tidak bisa dikirim sama sekali</b> — hapus datanya terlebih dahulu.</td>
+  </tr>
+</table>
+
+<h3>Warn — Perhatian</h3>
+<figure>
+  <img src="img/06-toast-warn.png" alt="Toast peringatan level warn">
+  <figcaption>Gambar 4 — Peringatan level warn (kuning)</figcaption>
+</figure>
+
+<h3>Redact — Tunggu Dulu</h3>
+<figure>
+  <img src="img/07-toast-redact.png" alt="Toast peringatan level redact dengan tombol Abaikan">
+  <figcaption>Gambar 5 — Peringatan level redact (merah) dengan tombol Abaikan</figcaption>
+</figure>
+
+<h3>Block — Tidak Bisa Dikirim</h3>
+<figure>
+  <img src="img/08-toast-block.png" alt="Toast peringatan level block">
+  <figcaption>Gambar 6 — Peringatan level block (merah)</figcaption>
+</figure>
+
+<h2>6. Contoh Uji Coba</h2>
+<p>Kamu bisa mencoba keempat tingkat peringatan dengan prompt berikut:</p>
+<table>
+  <tr><th style="width:110px">Tingkat</th><th>Contoh prompt</th></tr>
+  <tr><td><span class="badge b-pass">Pass</span></td><td><i>Tolong jelaskan fotosintesis untuk anak SD kelas 5.</i></td></tr>
+  <tr><td><span class="badge b-warn">Warn</span></td><td><i>Saya bekerja sebagai dokter di rumah sakit.</i></td></tr>
+  <tr><td><span class="badge b-redact">Redact</span></td><td><i>Tanggal lahir saya 12 Mei 1998</i></td></tr>
+  <tr><td><span class="badge b-block">Block</span></td><td><i>NIK saya 3174051202900001</i></td></tr>
+</table>
+
+<h2>7. Tanya Jawab</h2>
+<p><b>Toast tidak muncul padahal saya mengetik data pribadi?</b><br>
+Pastikan kamu berada di <code>chatgpt.com</code> atau <code>gemini.google.com</code>, lalu muat ulang (<i>refresh</i>) halamannya. PromptGuard menganalisis ulang teks yang sudah ada setelah refresh.</p>
+<p><b>Unduhan model NER gagal?</b><br>
+Periksa koneksi internet, buka kembali popup, lalu klik <b>Periksa Ulang</b> dan unduh lagi.</p>
+<p><b>Tombol kirim tetap mati padahal data sudah saya hapus?</b><br>
+Hapus datanya, lalu ketik satu karakter (mis. spasi) agar analisis berjalan ulang. Jika masih bermasalah, muat ulang halaman.</p>
+<p><b>Apakah prompt saya dikirim ke server PromptGuard?</b><br>
+Tidak. Seluruh analisis berjalan lokal di browser-mu, termasuk model NER setelah diunduh.</p>
+
+</body>
+</html>
