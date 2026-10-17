@@ -1,17 +1,15 @@
-// domManager.js — Manipulasi DOM: toast peringatan & kontrol tombol kirim.
+// domManager.js — Toast peringatan dan kontrol tombol kirim.
 //
-// Keputusan dari Detector.analyze dipetakan ke aksi UI:
-//   pass   -> tidak ada toast, tombol aktif
-//   warn   -> toast kuning, tombol tetap aktif (user memutuskan sendiri)
-//   redact -> toast merah, tombol mati, ADA tombol override "Tetap kirim"
-//   block  -> toast merah, tombol mati, tanpa override (wajib hapus PII)
+// Pemetaan keputusan -> UI:
+//   pass   -> tanpa toast, tombol aktif
+//   warn   -> toast kuning, tombol tetap aktif
+//   redact -> toast merah, tombol mati, ada override "Tetap kirim"
+//   block  -> toast merah, tombol mati, tanpa override
 class DOMManager {
     constructor(config) {
         this.config = config;
         this.warningToast = null;
         this.overrideButton = null;
-        // Dipakai untuk menonaktifkan blokir sementara setelah user
-        // menekan "Tetap kirim" (redact). Direset setiap analisis baru.
         this.overrideArmed = false;
     }
 
@@ -33,7 +31,7 @@ class DOMManager {
         return this.warningToast;
     }
 
-    // Dipanggil setiap selesai analisis -> override selalu direset.
+    // Menerapkan hasil analisis ke UI. Override selalu direset di sini.
     applyDecision(buttonElement, result) {
         this.overrideArmed = false;
         const { decision, score, summary } = result;
@@ -46,14 +44,14 @@ class DOMManager {
 
         const detail = summary.length > 0 ? summary.join(', ') : 'data sensitif';
         if (decision === RiskScorer.DECISIONS.WARN) {
-            this.showWarning('warn', 'Perhatian', `Terdeteksi: <b>${detail}</b> (skor ${score}). Periksa sebelum mengirim.`);
+            this.showWarning('warn', 'Perhatian', `Pesan Anda mengandung <b>${detail}</b>. Periksa kembali sebelum mengirim.`);
             this.enableSendButton(buttonElement);
         } else if (decision === RiskScorer.DECISIONS.REDACT) {
-            this.showWarning('block', 'Aksi Ditahan', `Terdeteksi: <b>${detail}</b> (skor ${score}). Hapus data sensitif, atau kirim dengan risiko sendiri.`);
+            this.showWarning('block', 'Tunggu Dulu', `Pesan Anda mengandung <b>${detail}</b>. Hapus data tersebut, atau kirim dengan risiko Anda sendiri.`);
             this.disableSendButton(buttonElement);
             this.armOverride(buttonElement);
         } else { // BLOCK
-            this.showWarning('block', 'Aksi Diblokir', `Terdeteksi: <b>${detail}</b> (skor ${score}). Mohon hapus sebelum mengirim.`);
+            this.showWarning('block', 'Tidak Bisa Dikirim', `Pesan Anda mengandung <b>${detail}</b>. Hapus data tersebut sebelum mengirim.`);
             this.disableSendButton(buttonElement);
         }
     }
@@ -74,8 +72,8 @@ class DOMManager {
         }
     }
 
-    // Override "Tetap kirim": user sadar risiko -> tombol aktif sampai
-    // teks berubah (analisis berikutnya meresetnya).
+    // Override "Tetap kirim": user memilih sadar risiko. Berlaku sampai
+    // teks berubah (analisis berikutnya me-reset).
     armOverride(buttonElement) {
         this.overrideButton.style.display = '';
         this.overrideButton.onclick = () => {

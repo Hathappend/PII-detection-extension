@@ -1,32 +1,24 @@
-// ner-client.js — Loader malas (lazy) untuk model NER via transformers.js.
+// ner-client.js — Pemuatan model NER via transformers.js.
 //
-// Prinsip desain:
-//   1. Model dimuat SEKALI, saat pertama dibutuhkan (bukan saat halaman
-//      dibuka) — menghemat memori & waktu startup.
-//   2. Graceful degradation: jika library/model tidak tersedia, fungsi
-//      mengembalikan [] dan ekstensi tetap berjalan dengan regex +
-//      risk scorer. NER adalah penguat, bukan syarat.
-//   3. Semua teks diproses lokal di browser; tidak ada data yang keluar.
-//
-// CARA PASANG (sekali saja, oleh developer):
-//   node scripts/fetch-vendor.mjs   -> mengisi vendor/transformers.js + *.wasm
-//   (JANGAN pakai CDN — Content Security Policy ekstensi melarang remote code.)
+// Model dimuat sekali saat pertama dibutuhkan (bukan saat halaman dibuka).
+// Bila library atau model tidak tersedia, fungsi mengembalikan [] dan
+// ekstensi tetap berjalan dengan regex + risk scorer. Semua teks diproses
+// lokal di browser; tidak ada data yang keluar.
 //
 // API:
 //   NerClient.extractEntities(text)      -> Promise<[{word, entity_group, score, start, end}]>
-//   NerClient.warmup(progressCallback)   -> Promise<boolean> (download model + progress)
-//   NerClient.probeVendor()              -> Promise<boolean> (apakah vendor/ ada?)
+//   NerClient.warmup(progressCallback)   -> Promise<boolean> (unduh model + progres)
+//   NerClient.probeVendor()              -> Promise<boolean> (apakah vendor/ tersedia?)
 //   NerClient.status()                   -> Promise<{available, model}>
 const NerClient = (() => {
 
 let pipelinePromise = null;
-let vendorOk = null; // null = belum dicek
-let vendorError = null; // pesan error terakhir (untuk diagnostik)
+let vendorOk = null;
+let vendorError = null;
 
-// Cek ringan: apakah file vendor/transformers.js bisa di-import?
-// (import di-cache oleh module system, jadi murah untuk dipanggil ulang)
-// Dibagi dua langkah agar penyebab kegagalan jelas: file tidak diserve
-// (butuh Reload di chrome://extensions) vs modul gagal dievaluasi.
+// Memastikan vendor/transformers.js dapat di-import.
+// Pengecekan dibagi dua tahap agar penyebab kegagalan teridentifikasi:
+// file tidak tersedia vs modul gagal dievaluasi.
 async function probeVendor() {
     if (vendorOk !== null) return vendorOk;
     const url = chrome.runtime.getURL(ModelConfig.VENDOR_LIB);
@@ -60,10 +52,8 @@ async function createPipeline(progressCallback) {
     const libUrl = chrome.runtime.getURL(ModelConfig.VENDOR_LIB);
     const { pipeline, env } = await import(libUrl);
 
-    // Arahkan onnxruntime ke file .wasm LOKAL di dalam ekstensi.
-    // (Default-nya CDN jsdelivr — diblokir CSP & butuh internet tiap sesi.)
-    // Sumber: transformers.js v3 src/backends/onnx.js
-    //   -> env.backends.onnx = ONNX_ENV (onnxruntime env)
+    // onnxruntime diarahkan ke file .wasm lokal di dalam ekstensi
+    // (bawaan transformers.js menunjuk ke CDN yang diblokir CSP).
     try {
         if (env.backends && env.backends.onnx && env.backends.onnx.wasm) {
             env.backends.onnx.wasm.wasmPaths = chrome.runtime.getURL('vendor/');
@@ -92,8 +82,7 @@ function loadPipeline(progressCallback) {
             if (pipe) markReady();
             return pipe;
         } catch (err) {
-            // Model gagal diunduh / WebAssembly tidak didukung ->
-            // NER nonaktif permanen untuk sesi ini.
+            // NER tidak tersedia untuk sesi ini; deteksi lanjut dengan regex.
             console.warn('[PromptGuard] NER tidak tersedia, mode regex-only.', err);
             return null;
         }
@@ -105,9 +94,9 @@ async function extractEntities(text) {
     const pipe = await loadPipeline(null);
     if (!pipe) return [];
     try {
-        // transformers.js v3 TIDAK mendukung aggregation_strategy —
-        // output selalu token mentah: [{ entity: 'B-LOC'|'I-LOC'|'O', score, word }].
-        // Agregasi BIO -> entitas dilakukan manual di sini.
+        // transformers.js v3 mengembalikan token mentah tanpa agregasi
+        // (tanpa entity_group/start/end): [{ entity: 'B-LOC'|'I-LOC'|'O', score, word }].
+        // Agregasi BIO menjadi entitas dilakukan manual di bawah.
         const tokens = await pipe(text);
         return aggregateBio(tokens);
     } catch (err) {
@@ -116,8 +105,8 @@ async function extractEntities(text) {
     }
 }
 
-// Gabungkan token BIO ("B-LOC","I-LOC",...) menjadi entitas utuh.
-// Menangani subword BERT ("##ati" -> "ati", tanpa spasi) dan tanda baca.
+// Menggabungkan token BIO ("B-LOC","I-LOC",...) menjadi entitas utuh,
+// termasuk penanganan subword BERT ("##ati") dan tanda baca.
 function aggregateBio(tokens) {
     const entities = [];
     let cur = null;
@@ -157,22 +146,20 @@ function joinWordParts(parts) {
     return out;
 }
 
-// warmup: dipanggil dari tombol popup. Mengunduh model (~180MB, sekali
-// saja lalu di-cache browser) dengan laporan progres.
-// progressCallback menerima { file, progress (0-100), loaded, total, status }.
+// Mengunduh model (~110MB, sekali saja lalu di-cache browser)
+// dengan laporan progres via callback.
 async function warmup(progressCallback) {
     const pipe = await loadPipeline(progressCallback || null);
     return !!pipe;
 }
 
-// Untuk popup & debug dari console. MURAH: tidak memicu download model.
-// Status "model siap" dibaca popup dari chrome.storage (di-set setelah
-// warmup/inferensi pertama berhasil).
+// Status untuk popup dan debug console. Tidak memicu unduhan model;
+// status "model siap" dibaca dari chrome.storage.
 async function status() {
     return { vendorOk: await probeVendor(), vendorError, model: ModelConfig.MODEL_ID };
 }
 
-// Dipanggil internal setelah pipeline terbukti bekerja.
+// Menandai model siap di storage setelah pipeline terbukti bekerja.
 function markReady() {
     try {
         chrome.storage.local.set({ pg_ner_ready: true, pg_ner_ready_at: Date.now() });

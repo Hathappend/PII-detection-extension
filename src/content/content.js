@@ -1,15 +1,14 @@
-// Entry Point Content Script — PromptGuard.
+// content.js — Entry point content script PromptGuard.
 //
-// Alur per pesan:
-//   ketikan -> debounce -> Detector.analyze (regex + NER + risk scorer)
-//   -> DOMManager.applyDecision (toast + tombol kirim + Enter)
+// Alur per pesan: ketikan -> debounce -> Detector.analyze
+// -> DOMManager.applyDecision (toast + tombol kirim + Enter).
 class ContentScript {
     constructor() {
         this.domManager = new DOMManager(AppConfig);
         this.activePlatform = this.detectPlatform();
         this.isMonitoring = false;
         this.debounceTimer = null;
-        this.seq = 0;              // penjaga race-condition hasil async
+        this.seq = 0; // penomoran analisis untuk mengabaikan hasil basi
         this.lastDecision = 'pass';
     }
 
@@ -28,14 +27,12 @@ class ContentScript {
         this.startObserver();
     }
 
-    // Jembatan popup <-> content script untuk unduhan model NER.
-    // Protokol: PG_NER_STATUS / PG_NER_WARMUP (popup -> content),
-    //          PG_NER_PROGRESS / PG_NER_DONE (content -> popup).
+    // Jembatan pesan popup <-> content script untuk unduhan model NER.
     setupMessageBridge() {
         chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
             if (msg.type === 'PG_NER_STATUS') {
                 NerClient.status().then(sendResponse);
-                return true; // respons async
+                return true;
             }
             if (msg.type === 'PG_NER_WARMUP') {
                 this.startWarmup();
@@ -85,16 +82,15 @@ class ContentScript {
     }
 
     attachInputListener(inputField) {
-        // Analisis di-debounce: regex murah, tapi inferensi NER mahal —
-        // hanya jalan setelah user berhenti mengetik sejenak.
+        // Analisis di-debounce: regex murah, inferensi NER mahal.
         inputField.addEventListener('input', (e) => {
             const text = e.target.value || e.target.innerText || '';
             clearTimeout(this.debounceTimer);
             this.debounceTimer = setTimeout(() => this.analyzeText(text), ModelConfig.DEBOUNCE_MS);
         });
 
-        // Cegah pengiriman via Enter saat keputusan = block.
-        // Capture phase agar berjalan SEBELUM handler milik situs.
+        // Cegah pengiriman via Enter saat block.
+        // Capture phase agar berjalan sebelum handler milik situs.
         inputField.addEventListener('keydown', (e) => {
             if (e.key === 'Enter' && !e.shiftKey && this.lastDecision === RiskScorer.DECISIONS.BLOCK) {
                 e.preventDefault();
@@ -109,10 +105,10 @@ class ContentScript {
 
         const result = await Detector.analyze(text);
 
-        // Abaikan hasil basi (user sudah mengetik lagi selagi NER jalan).
+        // Abaikan hasil dari analisis yang sudah kedaluwarsa.
         if (mySeq !== this.seq) return;
 
-        // Log debug: skor + rincian sinyal (membantu diagnosis & transparansi).
+        // Log diagnosis: skor + rincian tiap sinyal.
         console.log(`[PromptGuard] "${text.slice(0, 60)}" -> ${result.decision} (${result.score})`);
         for (const b of result.breakdown) {
             if (b.points > 0) console.log(`   [${b.kind}] ${b.label} +${b.points} ${b.detail || ''}`);
@@ -123,6 +119,6 @@ class ContentScript {
     }
 }
 
-// Menjalankan ekstensi
+// Inisialisasi ekstensi.
 const app = new ContentScript();
 app.init();

@@ -1,29 +1,24 @@
 // ner-postprocess.js — Pembersihan output NER sebelum masuk risk scorer.
 //
-// Model NER (terutama yang dilatih di teks berita formal) punya pola
-// false positive yang sistematis di chat informal. File ini menanganinya
-// dengan aturan murah dan dapat dijelaskan:
+// Menangani dua pola false positive yang sistematis pada chat informal:
 //
-//   1. PRONOUN_STOPLIST — model kadang menandai pronomina sebagai PER
-//      ("gw" -> PER 0.98). Pronomina tidak pernah nama orang.
-//   2. MERGE_ADJACENT — tanggal numerik sering terfragmentasi
-//      ("12-05-98" -> DAT '12','05','98'); gabungkan entitas segrup
-//      yang bersebelahan.
+//   1. Pronomina yang salah ditandai sebagai PER ("gw" -> PER).
+//      Daftar kata di PRONOUN_STOPLIST.
+//   2. Fragmentasi tanggal numerik ("12-05-98" -> '12','05','98').
+//      Entitas segrup yang bersebelahan digabung kembali.
 //
 // API: NerPostprocess.clean(entities) -> entities (format sama).
-// entities: [{ word, entity_group, score, start?, end? }]
 const NerPostprocess = (() => {
 
-// Pronomina Indonesia tidak pernah merupakan nama orang/lokasi.
-// Perbandingan case-insensitive, match persis seluruh kata.
+// Pronomina tidak pernah merupakan nama orang/lokasi.
+// Pencocokan case-insensitive pada seluruh kata.
 const PRONOUN_STOPLIST = new Set([
     'gw', 'gue', 'aku', 'saya', 'kamu', 'kau', 'anda',
     'dia', 'ia', 'beliau', 'mereka', 'kami', 'kita',
     'lo', 'lu', 'elu', 'elo',
 ]);
 
-// Jarak maksimum (karakter) antar dua entitas segrup agar digabung.
-// 2 mencakup pemisah "-" dan " " pada "12-05-98" -> "12-05-98".
+// Jarak maksimum (karakter) antar entitas segrup agar digabung.
 const MERGE_GAP_MAX = 2;
 
 function isPronoun(word) {
@@ -51,9 +46,7 @@ function mergeAdjacent(entities) {
 
 function clean(entities) {
     if (!entities || entities.length === 0) return [];
-    // 1. Buang pronomina yang salah ditandai sebagai entitas.
     const filtered = entities.filter((e) => !isPronoun(e.word));
-    // 2. Gabungkan fragment yang bersebelahan.
     return mergeAdjacent(filtered);
 }
 

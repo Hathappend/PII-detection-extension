@@ -7,7 +7,7 @@
 //   node scripts/fetch-vendor.mjs
 //
 // Kenapa tidak pakai CDN / file dist langsung?
-//   1. CSP Manifest V3 melarang remote code -> library WAJIB dibundle
+//   1. CSP Manifest V3 melarang remote code -> library wajib dibundle
 //      lokal di dalam ekstensi.
 //   2. dist/transformers.web.js punya external deps (onnxruntime-web)
 //      yang tidak bisa di-resolve oleh import() polos -> harus di-bundle
@@ -48,7 +48,7 @@ try {
     sh(`npx esbuild entry.js --bundle --format=esm --platform=browser --minify --outfile=${join(VENDOR, 'transformers.js')}`, tmp);
 
     // File WASM onnxruntime-web (dimuat saat runtime via wasmPaths).
-    // CATATAN: selain .wasm, file glue .mjs (Emscripten) juga WAJIB ikut —
+    // Catatan: selain .wasm, file glue .mjs (Emscripten) juga wajib ikut —
     // onnxruntime-web melakukan dynamic import() ke "<nama>.mjs" saat init.
     // Tanpa ini: "no available backend found / Failed to fetch ... .mjs".
     const ortDist = join(tmp, 'node_modules', 'onnxruntime-web', 'dist');

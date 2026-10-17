@@ -74,7 +74,7 @@
             recheckBtn.hidden = false;
         } else {
             setStatus(`Model NER (<b>${res.model}</b>) belum diunduh.<br>` +
-                'Diperlukan sekali saja (±180MB), lalu tersimpan di browser.');
+                'Diperlukan sekali saja (±110MB), lalu tersimpan di browser.');
             downloadBtn.hidden = false;
         }
     }

@@ -1,20 +1,16 @@
-// detector.js — Orkestrator deteksi: regex + NER -> RiskScorer.
+// detector.js — Orkestrasi deteksi: regex + NER -> RiskScorer.
 //
-// Alur:
-//   analyze(text)
-//     1. scanRegex(text)      -> hits pola RegexConfig (dengan span)
-//     2. Jika sinyal regex saja sudah mencapai BLOCK -> selesai (hemat:
-//        inferensi NER tidak akan mengubah keputusan).
-//     3. NerClient.extractEntities(text) -> NerPostprocess.clean(...)
-//     4. RiskScorer.scoreMessage(...) -> { score, decision, breakdown }
+//   analyze(text):
+//     1. scanRegex        -> kandidat pola RegexConfig (dengan span)
+//     2. Jalur cepat: bila regex saja sudah BLOCK, NER dilewati
+//        (skor hanya bisa naik, keputusan tak berubah)
+//     3. NER -> NerPostprocess.clean -> kandidat entitas
+//     4. RiskScorer.scoreMessage -> { score, decision, breakdown }
 //
-// API:
-//   Detector.scanRegex(text) -> [{ patternId, name, start, end, matched }]
-//   Detector.analyze(text)   -> Promise<{ score, decision, breakdown,
-//                                         categories, summary }>
+// API: scanRegex(text), analyze(text) -> Promise<hasil + summary>
 const Detector = (() => {
 
-// Regex global itu stateful (lastIndex) -> selalu reset sebelum dipakai.
+// Regex global menyimpan lastIndex antar pemakaian -> selalu di-reset.
 function scanRegex(text) {
     const hits = [];
     for (const p of RegexConfig.PATTERNS) {
@@ -34,13 +30,11 @@ function scanRegex(text) {
     return hits;
 }
 
-// Nama ramah untuk label di breakdown (regex id -> nama Indonesia,
-// grup NER -> nama Indonesia).
-const NER_GROUP_NAMES = {
-    PER: 'Nama (NER)', LOC: 'Lokasi (NER)', GPE: 'Lokasi (NER)',
-    DAT: 'Tanggal (NER)', TIM: 'Waktu (NER)',
-    ORG: 'Organisasi (NER)', MISC: 'Lainnya (NER)',
-};
+// Label ramah untuk ringkasan toast (tanpa istilah teknis).
+// Definisi di ScoringConfig.DISPLAY_NAMES.
+function friendlyName(label, fallback) {
+    return ScoringConfig.DISPLAY_NAMES[label] || fallback;
+}
 
 function summarize(result, regexHits) {
     const names = new Map();
@@ -48,11 +42,18 @@ function summarize(result, regexHits) {
     const parts = [];
     for (const b of result.breakdown) {
         if (b.points <= 0) continue;
-        if (b.kind === 'regex') parts.push(names.get(b.label) || b.label);
-        else if (b.kind === 'ner') parts.push(NER_GROUP_NAMES[b.label] || b.label);
+        if (b.kind === 'regex') {
+            // Tanggal yang dibatasi (bukan tanggal lahir) tampilkan
+            // sebagai "Tanggal" saja agar tidak menyesatkan.
+            if (b.dateCapped) {
+                parts.push('Tanggal');
+            } else {
+                parts.push(friendlyName(b.label, names.get(b.label) || b.label));
+            }
+        }
+        else if (b.kind === 'ner') parts.push(friendlyName(b.label, b.label));
     }
-    // Unik, maksimal 3 jenis.
-    return [...new Set(parts)].slice(0, 3);
+    return [...new Set(parts)];
 }
 
 async function analyze(text) {
