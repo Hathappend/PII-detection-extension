@@ -134,10 +134,10 @@ class ContentScript {
         if (mySeq !== this.seq) return;
 
         // Log diagnosis: skor + rincian tiap sinyal.
-        console.log(`[PromptGuard] "${text.slice(0, 60)}" -> ${result.decision} (${result.score})`);
-        for (const b of result.breakdown) {
-            if (b.points > 0) console.log(`   [${b.kind}] ${b.label} +${b.points} ${b.detail || ''}`);
-        }
+        // console.log(`[PromptGuard] "${text.slice(0, 60)}" -> ${result.decision} (${result.score})`);
+        // for (const b of result.breakdown) {
+        //     if (b.points > 0) console.log(`   [${b.kind}] ${b.label} +${b.points} ${b.detail || ''}`);
+        // }
 
         this.lastDecision = result.decision;
         this.domManager.applyDecision(sendButton, result);
