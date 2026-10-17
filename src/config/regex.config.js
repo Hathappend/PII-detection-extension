@@ -5,7 +5,7 @@
 // penanda (trigger) mencantumkannya di komentar.
 const RegexConfig = {
     PATTERNS: [
-        // --- A. Nama & hubungan keluarga ---
+        // A. Nama & hubungan keluarga
         {
             id: 'NAMA_KONTEKS',
             name: 'Nama Lengkap',
@@ -34,7 +34,7 @@ const RegexConfig = {
             regex: /\b(Prof\.|Dr\.|dr\.|Ir\.|H\.|Hj\.|S\.Kom|S\.T\.|S\.E\.|S\.Pd|M\.T\.|M\.Kom|M\.Sc|Ph\.D)\s+[A-Z][a-z]+/gi
         },
 
-        // --- B. Nomor identitas resmi ---
+        // B. Nomor identitas resmi
         {
             id: 'NIK_KK',
             name: 'NIK / No. KK',
@@ -97,7 +97,7 @@ const RegexConfig = {
             regex: /(?:nomor|no\.?)\s+(?:buku\s+nikah|akta\s+perkawinan)\s*[:\-]?\s*([a-zA-Z0-9\/\-]+)/gi
         },
 
-        // --- C. Data demografi ---
+        // C. Data demografi
         {
             id: 'TEMPAT_LAHIR',
             name: 'Tempat Lahir',
@@ -149,7 +149,7 @@ const RegexConfig = {
             regex: /(?:(?:pekerjaan|profesi)(?:\s+saya)?(?:\s+adalah)?\s+(?:sebagai\s+)?|(?:bekerja|kerja)\s+sebagai\s+)([a-zA-Z]+(?:\s[a-zA-Z]+){0,2})/gi
         },
 
-        // --- D. Identifikasi spesifik lainnya ---
+        // D. Identifikasi spesifik lainnya
         {
             id: 'TANDA_TANGAN_DIGITAL',
             name: 'Tanda Tangan Digital',
@@ -161,7 +161,7 @@ const RegexConfig = {
             regex: /(?:tinggi\s+badan|berat\s+badan)(?:\s+saya)?\s*[:\-]?\s*\d+\s*(cm|kg)/gi
         },
 
-        // --- E. Kontak & keuangan ---
+        // E. Kontak & keuangan
         {
             id: 'NO_HP',
             name: 'Nomor HP',

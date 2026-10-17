@@ -19,9 +19,7 @@ const DECISIONS = {
     BLOCK: 'block',
 };
 
-// ---------------------------------------------------------------------------
 // Util internal
-// ---------------------------------------------------------------------------
 
 function signalOf(patternId) {
     return ScoringConfig.SIGNAL_SCORES[patternId] || ScoringConfig.DEFAULT_SIGNAL;
@@ -48,9 +46,7 @@ function normValue(word) {
     return String(word).toLowerCase().replace(/\s+/g, ' ').trim();
 }
 
-// ---------------------------------------------------------------------------
 // Tahap 1: sinyal regex
-// ---------------------------------------------------------------------------
 
 function scoreRegexHits(hits, text, ctx) {
     const kept = dedupeOverlapping(hits);
@@ -83,9 +79,7 @@ function scoreRegexHits(hits, text, ctx) {
     return maxSignal;
 }
 
-// ---------------------------------------------------------------------------
 // Tahap 2: sinyal NER (dengan deduplikasi nilai yang sama)
-// ---------------------------------------------------------------------------
 
 function scoreNerEntities(entities, ctx) {
     const allow = ctx.allowlist;
@@ -137,9 +131,7 @@ function scoreNerEntities(entities, ctx) {
     return total;
 }
 
-// ---------------------------------------------------------------------------
 // Tahap 3: ko-okurensi kategori berbeda
-// ---------------------------------------------------------------------------
 
 function scoreCooccurrence(ctx) {
     const n = ctx.categories.size;
@@ -151,9 +143,7 @@ function scoreCooccurrence(ctx) {
     return pts;
 }
 
-// ---------------------------------------------------------------------------
 // Tahap 4: boost konteks personal
-// ---------------------------------------------------------------------------
 
 const SELF_ID_RE = /\b(saya|aku|gue|gw)\b/i;
 
@@ -189,9 +179,7 @@ function scoreTriggers(text, nerEntities, ctx) {
     return boost;
 }
 
-// ---------------------------------------------------------------------------
 // API utama
-// ---------------------------------------------------------------------------
 
 function scoreMessage(text, options = {}) {
     const {

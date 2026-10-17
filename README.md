@@ -11,7 +11,7 @@ ketikan -> debounce -> Detector.analyze -> keputusan -> UI
                               |
               +----------------+-----------------+
               |                                  |
-     RegexConfig (23 pola)              NER transformers.js
+     RegexConfig (30 pola)              NER transformers.js
      ID terstruktur, presisi            nama/lokasi/tanggal,
      tinggi (NIK, HP, email)            recall tinggi
               |                                  |
@@ -29,8 +29,9 @@ opsi "Tetap kirim"; **block** (≥85) → tombol kirim + Enter dimatikan.
 src/
 ├── config/
 │   ├── app.config.js      # selector DOM per platform + konstanta UI
-│   ├── regex.config.js    # 23 pola RegexConfig (id, nama, regex)
-│   └── model.config.js    # konfigurasi model NER (id, threshold, debounce)
+│   ├── regex.config.js    # 30 pola RegexConfig (id, nama, regex)
+│   ├── model.config.js    # konfigurasi model NER (id, threshold, debounce)
+│   └── scoring.config.js  # bobot pola, ambang skor, trigger ko-okurensi
 ├── core/                  # logika inti, tanpa dependensi DOM
 │   ├── risk-scorer.js     # RiskScorer: skor 0-100 + keputusan
 │   ├── ner-postprocess.js # NerPostprocess: stoplist pronomina, gabung fragment
@@ -69,7 +70,8 @@ langsung bisa di-load.
 **Tahap 2 — sekali oleh tiap pengguna** (otomatis via popup):
 
 1. Klik ikon ekstensi → bagian **Model NER** → **⬇ Download Model NER**.
-2. Model (~180MB, default `Xenova/bert-base-multilingual-cased-ner-hrl`)
+2. Model (~110MB, `hathappend/cahya-bert-base-indonesian-ner-onnx`
+   = cahya/bert-base-indonesian-NER, ONNX int8, uncased)
    diunduh dengan progress bar, lalu tersimpan permanen di cache browser.
 3. Jangan tutup tab selama mengunduh.
 
