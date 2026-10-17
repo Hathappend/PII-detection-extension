@@ -113,6 +113,17 @@ class ContentScript {
             }
         }, true);
 
+        // Delete/Backspace kadang tidak memicu 'input' karena ditangani
+        // sendiri oleh editor: awasi perubahan isi field secara langsung.
+        let lastObservedText = inputField.value || inputField.innerText || '';
+        new MutationObserver(() => {
+            const text = inputField.value || inputField.innerText || '';
+            if (text === lastObservedText) return;
+            lastObservedText = text;
+            clearTimeout(this.debounceTimer);
+            this.debounceTimer = setTimeout(() => this.analyzeText(text), ModelConfig.DEBOUNCE_MS);
+        }).observe(inputField, { childList: true, characterData: true, subtree: true });
+
         // Draft yang dipulihkan setelah refresh tidak memicu event:
         // analisis isi awal saat pasang + sekali lagi tunda 2 detik.
         const analyzeExisting = () => {
