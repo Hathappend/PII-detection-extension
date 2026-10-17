@@ -33,7 +33,7 @@
 .prompt-guard-toast.pg-block .pg-toast-title { color: #b91c1c; }
 .prompt-guard-toast.pg-block .pg-toast-message { color: #7f1d1d; }
 
-/* Tombol override "Tetap kirim" (hanya di level redact) */
+/* Tombol override "Abaikan" (hanya di level redact) */
 .pg-toast-override {
     margin-left: 8px;
     padding: 6px 12px;

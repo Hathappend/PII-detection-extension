@@ -89,10 +89,15 @@ class ContentScript {
             this.debounceTimer = setTimeout(() => this.analyzeText(text), ModelConfig.DEBOUNCE_MS);
         });
 
-        // Cegah pengiriman via Enter saat block.
+        // Cegah pengiriman via Enter saat block atau redact.
+        // Saat redact, Enter dibuka lagi setelah user menekan "Abaikan"
+        // (override sadar risiko) di toast.
         // Capture phase agar berjalan sebelum handler milik situs.
         inputField.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter' && !e.shiftKey && this.lastDecision === RiskScorer.DECISIONS.BLOCK) {
+            const hardBlocked = this.lastDecision === RiskScorer.DECISIONS.BLOCK;
+            const softBlocked = this.lastDecision === RiskScorer.DECISIONS.REDACT
+                && !this.domManager.overrideArmed;
+            if (e.key === 'Enter' && !e.shiftKey && (hardBlocked || softBlocked)) {
                 e.preventDefault();
                 e.stopPropagation();
             }
