@@ -3,7 +3,7 @@
 // Pemetaan keputusan -> UI:
 //   pass   -> tanpa toast, tombol aktif
 //   warn   -> toast kuning, tombol tetap aktif
-//   redact -> toast merah, tombol mati, ada override "Tetap kirim"
+//   redact -> toast merah, tombol mati, ada override "Abaikan"
 //   block  -> toast merah, tombol mati, tanpa override
 class DOMManager {
     constructor(config) {
@@ -23,7 +23,7 @@ class DOMManager {
                     <span class="pg-toast-title"></span>
                     <span class="pg-toast-message"></span>
                 </div>
-                <button class="pg-toast-override" style="display:none">Tetap kirim</button>
+                <button class="pg-toast-override" style="display:none">Abaikan</button>
             `;
             document.body.appendChild(this.warningToast);
             this.overrideButton = this.warningToast.querySelector('.pg-toast-override');
@@ -72,7 +72,7 @@ class DOMManager {
         }
     }
 
-    // Override "Tetap kirim": user memilih sadar risiko. Berlaku sampai
+    // Override "Abaikan": user memilih sadar risiko. Berlaku sampai
     // teks berubah (analisis berikutnya me-reset).
     armOverride(buttonElement) {
         this.overrideButton.style.display = '';

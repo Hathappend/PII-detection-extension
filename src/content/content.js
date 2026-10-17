@@ -89,14 +89,39 @@ class ContentScript {
             this.debounceTimer = setTimeout(() => this.analyzeText(text), ModelConfig.DEBOUNCE_MS);
         });
 
-        // Cegah pengiriman via Enter saat block.
+        // Event 'input' tidak selalu menyala saat paste karena editor situs
+        // memprosesnya sendiri: baca isi field setelah paste selesai.
+        inputField.addEventListener('paste', () => {
+            setTimeout(() => {
+                const text = inputField.value || inputField.innerText || '';
+                clearTimeout(this.debounceTimer);
+                this.debounceTimer = setTimeout(() => this.analyzeText(text), ModelConfig.DEBOUNCE_MS);
+            }, 0);
+        });
+
+        // Cegah pengiriman via Enter saat block atau redact.
+        // Saat redact, Enter dibuka lagi setelah user menekan "Abaikan"
+        // (override sadar risiko) di toast.
         // Capture phase agar berjalan sebelum handler milik situs.
         inputField.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter' && !e.shiftKey && this.lastDecision === RiskScorer.DECISIONS.BLOCK) {
+            const hardBlocked = this.lastDecision === RiskScorer.DECISIONS.BLOCK;
+            const softBlocked = this.lastDecision === RiskScorer.DECISIONS.REDACT
+                && !this.domManager.overrideArmed;
+            if (e.key === 'Enter' && !e.shiftKey && (hardBlocked || softBlocked)) {
                 e.preventDefault();
                 e.stopPropagation();
             }
         }, true);
+
+        // Draft yang dipulihkan setelah refresh tidak memicu event:
+        // analisis isi awal saat pasang + sekali lagi tunda 2 detik.
+        const analyzeExisting = () => {
+            const field = document.querySelector(this.activePlatform.inputSelector) || inputField;
+            const text = field.value || field.innerText || '';
+            if (text.trim()) this.analyzeText(text);
+        };
+        analyzeExisting();
+        setTimeout(analyzeExisting, 2000);
     }
 
     async analyzeText(text) {
@@ -109,10 +134,10 @@ class ContentScript {
         if (mySeq !== this.seq) return;
 
         // Log diagnosis: skor + rincian tiap sinyal.
-        console.log(`[PromptGuard] "${text.slice(0, 60)}" -> ${result.decision} (${result.score})`);
-        for (const b of result.breakdown) {
-            if (b.points > 0) console.log(`   [${b.kind}] ${b.label} +${b.points} ${b.detail || ''}`);
-        }
+        // console.log(`[PromptGuard] "${text.slice(0, 60)}" -> ${result.decision} (${result.score})`);
+        // for (const b of result.breakdown) {
+        //     if (b.points > 0) console.log(`   [${b.kind}] ${b.label} +${b.points} ${b.detail || ''}`);
+        // }
 
         this.lastDecision = result.decision;
         this.domManager.applyDecision(sendButton, result);
