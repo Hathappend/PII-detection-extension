@@ -35,17 +35,29 @@
 </head>
 <body>
 
-<h1>🛡️ Panduan Penggunaan PromptGuard</h1>
+<h1>Panduan Penggunaan PromptGuard</h1>
 <div class="subtitle">Ekstensi Chrome pendeteksi kebocoran data pribadi (PII) pada prompt AI</div>
 <div class="meta">Versi 1.1 &middot; 17 Oktober 2026</div>
 
 <h2>1. Pengenalan</h2>
-<p><b>PromptGuard</b> adalah ekstensi Chrome yang melindungimu dari kebocoran data pribadi saat memakai chatbot AI seperti <b>ChatGPT</b> dan <b>Gemini</b>. Setiap kali kamu mengetik atau menempel prompt, PromptGuard memeriksa apakah ada data pribadi di dalamnya — misalnya NIK, nama, tanggal lahir, atau nomor telepon — lalu memberi peringatan sebelum prompt terkirim.</p>
+<p><b>PromptGuard</b> adalah ekstensi Chrome yang melindungimu dari kebocoran data pribadi saat memakai chatbot AI seperti <b>ChatGPT</b> dan <b>Gemini</b>. Setiap kali kamu mengetik atau menempel prompt, PromptGuard memeriksa apakah ada data pribadi di dalamnya (misalnya NIK, nama, tanggal lahir, atau nomor telepon), lalu memberi peringatan sebelum prompt terkirim.</p>
 <p>Seluruh pemeriksaan berjalan <b>100% di perangkatmu</b>; tidak ada teks prompt yang dikirim ke server mana pun.</p>
 <h3>Cara kerja singkat</h3>
 <p>PromptGuard menggabungkan tiga lapisan: <b>pola</b> untuk data berstruktur (NIK, nomor KK, dsb.), <b>model AI (NER)</b> untuk mengenali nama, lokasi, dan tanggal dalam kalimat, serta <b>penilaian risiko</b> yang menggabungkan temuan menjadi empat tingkat peringatan. Detail teknis metode ini didokumentasikan terpisah di dokumen skripsi, bukan di panduan ini.</p>
 
-<h2>2. Instalasi</h2>
+<h2>2. Data yang Dideteksi</h2>
+<p>PromptGuard mengenali 30 jenis data pribadi melalui pola, ditambah entitas kontekstual melalui model AI:</p>
+<table>
+  <tr><th style="width:150px">Kategori</th><th>Data yang dideteksi</th></tr>
+  <tr><td>Nama &amp; identitas</td><td>Nama lengkap, nama panggilan/alias, nama ibu kandung, nama ayah kandung, gelar akademik/keagamaan</td></tr>
+  <tr><td>Dokumen resmi</td><td>NIK / No. KK, NIP, NPWP, nomor paspor, SIM, NISN, NIM, no. akta kelahiran, no. buku nikah</td></tr>
+  <tr><td>Data pribadi</td><td>Tempat dan tanggal lahir, jenis kelamin, kewarganegaraan, status perkawinan, agama, golongan darah, pekerjaan/profesi, tanda tangan digital, ciri fisik khusus</td></tr>
+  <tr><td>Keuangan</td><td>Nomor rekening, kartu kredit/debit</td></tr>
+  <tr><td>Kontak</td><td>Nomor HP, nomor telepon rumah/kantor, alamat email</td></tr>
+  <tr><td>Kontekstual (model AI)</td><td>Nama orang, lokasi, tanggal, dan waktu yang ditulis bebas tanpa pola khusus</td></tr>
+</table>
+
+<h2>3. Instalasi</h2>
 <ol class="steps">
   <li>Siapkan folder ekstensi <code>PII-detection-extension</code> di komputermu (hasil mengunduh/clone repositori).</li>
   <li>Buka <code>chrome://extensions</code> di Chrome.</li>
@@ -53,37 +65,35 @@
   <li>Klik <b>Load unpacked</b>, lalu pilih folder <code>PII-detection-extension</code>.</li>
   <li>Pastikan <b>Prompting Protection</b> muncul di daftar dan dalam keadaan aktif.</li>
   <li>(Opsional) Klik ikon puzzle di toolbar Chrome, lalu <i>pin</i> PromptGuard agar ikonnya selalu terlihat.</li>
-  <li>Buka <code>chatgpt.com</code> atau <code>gemini.google.com</code> — ekstensi langsung aktif.</li>
+  <li>Buka <code>chatgpt.com</code> atau <code>gemini.google.com</code>. Ekstensi langsung aktif.</li>
 </ol>
-<div class="note">Langkah instalasi di atas belum disertai gambar karena halaman <code>chrome://extensions</code> tidak dapat diabadikan di lingkungan penyusunan panduan ini. Kamu bisa menambahkan dua tangkapan layar (tampilan Developer mode dan daftar ekstensi) dari Chrome di komputermu sendiri.</div>
-
-<h2>3. Mengunduh Model NER (sekali saja, opsional)</h2>
+<h2>4. Mengunduh Model NER (sekali saja, opsional)</h2>
 <p>Model NER adalah komponen AI yang mengenali nama, lokasi, dan tanggal dalam kalimat. Model ini diunduh <b>satu kali saja</b> (±110MB), lalu tersimpan di browser.</p>
 <ol class="steps">
   <li>Klik ikon <b>PromptGuard</b> di toolbar Chrome untuk membuka popup.</li>
-  <li>Jika model belum diunduh, tampilannya seperti ini — klik <b>⬇ Download Model NER</b>:</li>
+  <li>Jika model belum diunduh, tampilannya seperti ini, klik <b>⬇ Download Model NER</b>:</li>
 </ol>
 <figure>
   <img class="popup" src="img/03-popup-belum-unduh.png" alt="Popup: model NER belum diunduh">
-  <figcaption>Gambar 1 — Popup saat model NER belum diunduh</figcaption>
+  <figcaption>Gambar 1: Popup saat model NER belum diunduh</figcaption>
 </figure>
 <ol class="steps" start="3">
   <li>Tunggu proses unduhan selesai. <b>Jangan tutup tab</b> selama mengunduh:</li>
 </ol>
 <figure>
   <img class="popup" src="img/04-popup-progress.png" alt="Popup: progres unduhan model NER">
-  <figcaption>Gambar 2 — Progres unduhan model NER</figcaption>
+  <figcaption>Gambar 2: Progres unduhan model NER</figcaption>
 </figure>
 <ol class="steps" start="4">
   <li>Setelah selesai, status berubah menjadi <b>✓ Model NER siap</b>:</li>
 </ol>
 <figure>
   <img class="popup" src="img/05-popup-siap.png" alt="Popup: model NER siap">
-  <figcaption>Gambar 3 — Model NER sudah siap dipakai</figcaption>
+  <figcaption>Gambar 3: Model NER sudah siap dipakai</figcaption>
 </figure>
 <div class="note"><b>Catatan:</b> tanpa mengunduh model pun ekstensi tetap berfungsi (memakai pola dan penilaian risiko). Model NER menambah kemampuan mendeteksi nama, lokasi, dan tanggal yang ditulis tanpa pola khusus.</div>
 
-<h2>4. Cara Memakai</h2>
+<h2>5. Cara Memakai</h2>
 <ul>
   <li>Gunakan ChatGPT atau Gemini seperti biasa: <b>ketik</b> atau <b>tempel</b> prompt ke kolom chat.</li>
   <li>PromptGuard menganalisis teks secara otomatis setiap kali kamu berhenti mengetik (atau selesai menempel).</li>
@@ -91,7 +101,7 @@
   <li>Tidak ada pengaturan yang perlu diubah untuk pemakaian sehari-hari.</li>
 </ul>
 
-<h2>5. Arti Tiap Tingkat Peringatan</h2>
+<h2>6. Arti Tiap Tingkat Peringatan</h2>
 <table>
   <tr><th style="width:110px">Tingkat</th><th>Tampilan</th><th>Arti &amp; tindakan</th></tr>
   <tr>
@@ -112,29 +122,29 @@
   <tr>
     <td><span class="badge b-block">Block</span></td>
     <td>Toast merah <b>“Tidak Bisa Dikirim”</b></td>
-    <td>Data sangat sensitif terdeteksi. Prompt <b>tidak bisa dikirim sama sekali</b> — hapus datanya terlebih dahulu.</td>
+    <td>Data sangat sensitif terdeteksi. Prompt <b>tidak bisa dikirim sama sekali</b>. Hapus datanya terlebih dahulu.</td>
   </tr>
 </table>
 
-<h3>Warn — Perhatian</h3>
+<h3>Warn: Perhatian</h3>
 <figure>
   <img src="img/06-toast-warn.png" alt="Toast peringatan level warn">
-  <figcaption>Gambar 4 — Peringatan level warn (kuning)</figcaption>
+  <figcaption>Gambar 4: Peringatan level warn (kuning)</figcaption>
 </figure>
 
-<h3>Redact — Tunggu Dulu</h3>
+<h3>Redact: Tunggu Dulu</h3>
 <figure>
   <img src="img/07-toast-redact.png" alt="Toast peringatan level redact dengan tombol Abaikan">
-  <figcaption>Gambar 5 — Peringatan level redact (merah) dengan tombol Abaikan</figcaption>
+  <figcaption>Gambar 5: Peringatan level redact (merah) dengan tombol Abaikan</figcaption>
 </figure>
 
-<h3>Block — Tidak Bisa Dikirim</h3>
+<h3>Block: Tidak Bisa Dikirim</h3>
 <figure>
   <img src="img/08-toast-block.png" alt="Toast peringatan level block">
-  <figcaption>Gambar 6 — Peringatan level block (merah)</figcaption>
+  <figcaption>Gambar 6: Peringatan level block (merah)</figcaption>
 </figure>
 
-<h2>6. Contoh Uji Coba</h2>
+<h2>7. Contoh Uji Coba</h2>
 <p>Kamu bisa mencoba keempat tingkat peringatan dengan prompt berikut:</p>
 <table>
   <tr><th style="width:110px">Tingkat</th><th>Contoh prompt</th></tr>
@@ -144,7 +154,7 @@
   <tr><td><span class="badge b-block">Block</span></td><td><i>NIK saya 3174051202900001</i></td></tr>
 </table>
 
-<h2>7. Tanya Jawab</h2>
+<h2>8. Tanya Jawab</h2>
 <p><b>Toast tidak muncul padahal saya mengetik data pribadi?</b><br>
 Pastikan kamu berada di <code>chatgpt.com</code> atau <code>gemini.google.com</code>, lalu muat ulang (<i>refresh</i>) halamannya. PromptGuard menganalisis ulang teks yang sudah ada setelah refresh.</p>
 <p><b>Unduhan model NER gagal?</b><br>
